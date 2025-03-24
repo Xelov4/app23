@@ -215,9 +215,12 @@ export default function AdminPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Gestion des outils</h2>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <Link 
+                  href="/admin/add/tools" 
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                >
                   + Ajouter un outil
-                </button>
+                </Link>
               </div>
               
               <div className="overflow-x-auto">
@@ -261,8 +264,13 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button className="text-blue-600 hover:text-blue-900 mr-3">Modifier</button>
-                            <button className="text-red-600 hover:text-red-900">Supprimer</button>
+                            <Link 
+                              href={`/admin/modify/tools/${tool.slug}`}
+                              className="text-blue-600 hover:text-blue-900 text-xl"
+                              title="Modifier"
+                            >
+                              ✏️
+                            </Link>
                           </td>
                         </tr>
                       ))
@@ -284,9 +292,12 @@ export default function AdminPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Gestion des catégories</h2>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <Link 
+                  href="/admin/add/categories" 
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                >
                   + Ajouter une catégorie
-                </button>
+                </Link>
               </div>
               
               <div className="overflow-x-auto">
@@ -321,8 +332,13 @@ export default function AdminPage() {
                             <div className="text-sm text-gray-500">{category.toolCount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button className="text-blue-600 hover:text-blue-900 mr-3">Modifier</button>
-                            <button className="text-red-600 hover:text-red-900">Supprimer</button>
+                            <Link 
+                              href={`/admin/modify/categories/${category.slug}`}
+                              className="text-blue-600 hover:text-blue-900 text-xl"
+                              title="Modifier"
+                            >
+                              ✏️
+                            </Link>
                           </td>
                         </tr>
                       ))
@@ -344,9 +360,12 @@ export default function AdminPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Gestion des tags</h2>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <Link 
+                  href="/admin/add/tags" 
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                >
                   + Ajouter un tag
-                </button>
+                </Link>
               </div>
               
               <div className="overflow-x-auto">
@@ -381,8 +400,13 @@ export default function AdminPage() {
                             <div className="text-sm text-gray-500">{tag.toolCount}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button className="text-blue-600 hover:text-blue-900 mr-3">Modifier</button>
-                            <button className="text-red-600 hover:text-red-900">Supprimer</button>
+                            <Link 
+                              href={`/admin/modify/tags/${tag.slug}`}
+                              className="text-blue-600 hover:text-blue-900 text-xl"
+                              title="Modifier"
+                            >
+                              ✏️
+                            </Link>
                           </td>
                         </tr>
                       ))
