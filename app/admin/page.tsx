@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { setCookie, getCookie, deleteCookie } from 'cookies-next';
 
 // Types pour les données
 interface Tool {
@@ -36,6 +37,7 @@ export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [activeTab, setActiveTab] = useState('outils');
   
   // Données depuis l'API
@@ -44,6 +46,21 @@ export default function AdminPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Vérifier l'authentification au chargement de la page
+  useEffect(() => {
+    const authToken = getCookie('videoIAAuthToken');
+    
+    if (authToken) {
+      // Vérifier si le token est valide (simple vérification ici, à améliorer en production)
+      if (authToken === 'admin_authenticated') {
+        setIsLoggedIn(true);
+      } else {
+        // Token invalide, le supprimer
+        deleteCookie('videoIAAuthToken');
+      }
+    }
+  }, []);
 
   // Fonction pour charger les données
   const fetchData = async (activeTab: string) => {
@@ -89,12 +106,29 @@ export default function AdminPage() {
     setActiveTab(tab);
   };
 
+  // Gestion de la déconnexion
+  const handleLogout = () => {
+    deleteCookie('videoIAAuthToken');
+    setIsLoggedIn(false);
+  };
+
   // Dans un cas réel, cela serait géré par une API et un système d'authentification
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Simuler une authentification (à remplacer par une vraie authentification)
     if (username === 'admin' && password === 'admin123') {
       setIsLoggedIn(true);
+      
+      // Sauvegarder dans un cookie si "Se souvenir de moi" est coché
+      if (rememberMe) {
+        // Définir le cookie qui expire dans 30 jours
+        setCookie('videoIAAuthToken', 'admin_authenticated', { 
+          maxAge: 30 * 24 * 60 * 60, // 30 jours en secondes
+          path: '/',
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production'
+        });
+      }
     } else {
       alert('Identifiants incorrects');
     }
@@ -120,7 +154,7 @@ export default function AdminPage() {
                 required
               />
             </div>
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-gray-700 mb-2" htmlFor="password">
                 Mot de passe
               </label>
@@ -132,6 +166,17 @@ export default function AdminPage() {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
                 required
               />
+            </div>
+            <div className="mb-6">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Se souvenir de moi</span>
+              </label>
             </div>
             <button
               type="submit"
@@ -158,7 +203,7 @@ export default function AdminPage() {
               Voir le site
             </Link>
             <button
-              onClick={() => setIsLoggedIn(false)}
+              onClick={handleLogout}
               className="text-red-600 hover:underline"
             >
               Déconnexion
