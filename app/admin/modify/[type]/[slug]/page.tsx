@@ -205,9 +205,33 @@ export default function ModifyPage() {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
-    setSuccessMessage(null);
     
     try {
+      // Si l'URL commence par /, c'est un chemin relatif, on ne fait pas de capture d'écran
+      if (formData.logoUrl && !formData.logoUrl.startsWith('/')) {
+        try {
+          const response = await fetch('/api/screenshot', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: formData.logoUrl }),
+          });
+          
+          const responseData = await response.json();
+          
+          if (!response.ok) {
+            console.error('Erreur lors de la capture d\'écran:', responseData.error);
+            // On continue même si la capture d'écran échoue
+          } else if (responseData.success && responseData.imageUrl) {
+            formData.logoUrl = responseData.imageUrl;
+          }
+        } catch (error) {
+          console.error('Erreur lors de la capture d\'écran:', error);
+          // On continue même si la capture d'écran échoue
+        }
+      }
+
       const response = await fetch(`/api/${type}/${slug}`, {
         method: 'PUT',
         headers: {
@@ -215,21 +239,16 @@ export default function ModifyPage() {
         },
         body: JSON.stringify(formData),
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Erreur lors de la sauvegarde (${response.status})`);
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la mise à jour');
       }
-      
-      setSuccessMessage('Modifications enregistrées avec succès');
-      
-      // Rediriger après 1.5 seconde
-      setTimeout(() => {
-        router.push('/admin');
-      }, 1500);
-      
-    } catch (err) {
-      console.error('Erreur:', err);
-      setError((err as Error).message);
+
+      router.push('/admin');
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue');
     } finally {
       setIsSaving(false);
     }
@@ -263,15 +282,14 @@ export default function ModifyPage() {
 
   // Capture d'écran
   const captureScreenshot = async () => {
-    if (!formData.websiteUrl) {
-      setScreenshotError("L'URL du site web est requise pour la capture d'écran");
-      return;
-    }
-    
     setIsCapturingScreenshot(true);
     setScreenshotError(null);
     
     try {
+      if (!formData.websiteUrl) {
+        throw new Error("L'URL du site web est requise");
+      }
+
       const response = await fetch('/api/screenshot', {
         method: 'POST',
         headers: {
@@ -282,25 +300,22 @@ export default function ModifyPage() {
       
       const responseData = await response.json();
       
-      if (!response.ok) {
-        // Utilisation directe d'un message d'erreur simple sans template literals
+      if (!response.ok || !responseData.success) {
         throw new Error(responseData.error || "Erreur lors de la capture d'écran");
       }
-      
-      if (!responseData.success || !responseData.imageUrl) {
-        throw new Error('La capture a échoué: réponse invalide du serveur');
+
+      if (!responseData.imageUrl) {
+        throw new Error("L'URL de l'image n'a pas été retournée");
       }
-      
-      setFormData(prev => ({ ...prev, logoUrl: responseData.imageUrl }));
-      setSuccessMessage('Logo capturé avec succès');
-      
-      // Masquer le message après 3 secondes
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-    } catch (err) {
-      console.error('Erreur lors de la capture d\'écran:', err);
-      setScreenshotError((err as Error).message);
+
+      setFormData(prev => ({
+        ...prev,
+        logoUrl: responseData.imageUrl
+      }));
+
+    } catch (error) {
+      console.error('Erreur lors de la capture d\'écran:', error);
+      setScreenshotError(error instanceof Error ? error.message : "Erreur lors de la capture d'écran");
     } finally {
       setIsCapturingScreenshot(false);
     }
@@ -492,7 +507,7 @@ export default function ModifyPage() {
                 </label>
                 <div className="flex">
                   <input
-                    type="url"
+                    type="text"
                     id={type === 'tools' ? 'logoUrl' : 'imageUrl'}
                     name={type === 'tools' ? 'logoUrl' : 'imageUrl'}
                     value={type === 'tools' ? (formData.logoUrl || '') : (formData.imageUrl || '')}

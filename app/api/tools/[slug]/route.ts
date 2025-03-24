@@ -65,6 +65,8 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
     const slug = params.slug;
     const data = await request.json();
     
+    console.log('Mise à jour de l\'outil:', slug, data);
+    
     // Vérifier si l'outil existe
     const existingTool = await db.tool.findUnique({
       where: { slug },
@@ -77,20 +79,28 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
       );
     }
 
-    // Mettre à jour l'outil
+    // Créer un objet avec uniquement les champs fournis
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.slug !== undefined) updateData.slug = data.slug;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl;
+    if (data.websiteUrl !== undefined) updateData.websiteUrl = data.websiteUrl;
+    if (data.pricingType !== undefined) updateData.pricingType = data.pricingType;
+    if (data.pricingDetails !== undefined) updateData.pricingDetails = data.pricingDetails;
+    if (data.features !== undefined) {
+      updateData.features = Array.isArray(data.features) ? JSON.stringify(data.features) : data.features;
+    }
+
+    console.log('Données de mise à jour:', updateData);
+
+    // Mettre à jour l'outil avec uniquement les champs fournis
     const updatedTool = await db.tool.update({
       where: { id: existingTool.id },
-      data: {
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        logoUrl: data.logoUrl,
-        websiteUrl: data.websiteUrl,
-        pricingType: data.pricingType as any, // Type Prisma enum
-        pricingDetails: data.pricingDetails,
-        features: Array.isArray(data.features) ? JSON.stringify(data.features) : data.features
-      },
+      data: updateData,
     });
+
+    console.log('Outil mis à jour avec succès:', updatedTool);
 
     return NextResponse.json(updatedTool);
   } catch (error) {

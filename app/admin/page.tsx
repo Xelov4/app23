@@ -429,6 +429,13 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Administration</h1>
+        <Link href="/admin/bulk" className="text-blue-600 hover:underline">
+          Actions en masse
+        </Link>
+      </div>
     </div>
   );
 } 

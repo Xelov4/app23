@@ -146,15 +146,14 @@ export default function AddPage() {
 
   // Capture d'écran
   const captureScreenshot = async () => {
-    if (!formData.websiteUrl) {
-      setScreenshotError("L'URL du site web est requise pour la capture d'écran");
-      return;
-    }
-    
     setIsCapturingScreenshot(true);
     setScreenshotError(null);
     
     try {
+      if (!formData.websiteUrl) {
+        throw new Error("L'URL du site web est requise");
+      }
+
       const response = await fetch('/api/screenshot', {
         method: 'POST',
         headers: {
@@ -165,27 +164,22 @@ export default function AddPage() {
       
       const responseData = await response.json();
       
-      if (!response.ok) {
-        // Utilisation directe d'un message d'erreur simple sans template literals
+      if (!response.ok || !responseData.success) {
         throw new Error(responseData.error || "Erreur lors de la capture d'écran");
       }
-      
-      if (!responseData.success || !responseData.imageUrl) {
-        throw new Error('La capture a échoué: réponse invalide du serveur');
+
+      if (!responseData.imageUrl) {
+        throw new Error("L'URL de l'image n'a pas été retournée");
       }
-      
-      setFormData(prev => ({ ...prev, logoUrl: responseData.imageUrl }));
-      
-      // Afficher un message de succès temporaire
-      const tempMessage = "Logo capturé avec succès";
-      setSuccessMessage(tempMessage);
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-      
-    } catch (err) {
-      console.error('Erreur lors de la capture d\'écran:', err);
-      setScreenshotError((err as Error).message);
+
+      setFormData(prev => ({
+        ...prev,
+        logoUrl: responseData.imageUrl
+      }));
+
+    } catch (error) {
+      console.error('Erreur lors de la capture d\'écran:', error);
+      setScreenshotError(error instanceof Error ? error.message : "Erreur lors de la capture d'écran");
     } finally {
       setIsCapturingScreenshot(false);
     }
