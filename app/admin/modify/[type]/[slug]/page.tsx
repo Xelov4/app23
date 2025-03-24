@@ -46,6 +46,7 @@ export default function ModifyPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   // Chargement des données
   useEffect(() => {
@@ -111,6 +112,59 @@ export default function ModifyPage() {
       ...prev,
       features: prev.features?.filter((_, i) => i !== index)
     }));
+  };
+
+  // Amélioration de la description avec Google Gemini
+  const enhanceWithGemini = async () => {
+    setIsEnhancing(true);
+    setError(null);
+    
+    try {
+      const prompt = `enrichie cette description avec le plus d'informations possible, entre 500 et 1000 mots: 
+      
+      Site: ${formData.websiteUrl || ''}
+      
+      Description actuelle: ${formData.description}`;
+      
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyB5Jku7K8FwTM0LcC3Iihfo4btAJ6IgCcA",
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }]
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors de la requête à l'API Gemini (${response.status})`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+        const enhancedDescription = data.candidates[0].content.parts[0].text;
+        setFormData(prev => ({ ...prev, description: enhancedDescription }));
+        setSuccessMessage('Description améliorée avec Google Gemini');
+        
+        // Masquer le message après 3 secondes
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
+      } else {
+        throw new Error('Format de réponse inattendu de l\'API Gemini');
+      }
+    } catch (err) {
+      console.error('Erreur Gemini:', err);
+      setError(`Erreur lors de l'amélioration: ${(err as Error).message}`);
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   // Soumission du formulaire
@@ -253,16 +307,33 @@ export default function ModifyPage() {
               </div>
               
               <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2" htmlFor="description">
-                  Description
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-gray-700 font-bold" htmlFor="description">
+                    Description
+                  </label>
+                  {type === 'tools' && (
+                    <button
+                      type="button"
+                      onClick={enhanceWithGemini}
+                      disabled={isEnhancing}
+                      className={`flex items-center text-sm bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors ${
+                        isEnhancing ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                      </svg>
+                      {isEnhancing ? 'Amélioration...' : 'Améliorer avec Google'}
+                    </button>
+                  )}
+                </div>
                 <textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border rounded-lg"
-                  rows={4}
+                  rows={6}
                   required
                 />
               </div>
