@@ -29,6 +29,7 @@ model Tool {
   pricingDetails    String?
   rating            Float?
   reviewCount       Int?
+  isActive          Boolean             @default(true)  // Indique si l'outil est actif (ON) ou inactif (OFF)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   CategoriesOnTools CategoriesOnTools[]

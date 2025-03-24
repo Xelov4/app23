@@ -52,6 +52,7 @@ async function getSimilarTools(categoryId: string, currentToolId: string, limit 
     const similarTools = await db.tool.findMany({
       where: {
         id: { not: currentToolId },
+        isActive: true,
         CategoriesOnTools: {
           some: {
             categoryId
@@ -90,6 +91,10 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
   if (!tool) {
     notFound();
   }
+  
+  if (!tool.isActive) {
+    notFound();
+  }
 
   // Obtenir des outils similaires de la même catégorie principale
   const primaryCategoryId = tool.CategoriesOnTools[0]?.categoryId;
@@ -106,19 +111,26 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
       </div>
       
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="md:flex">
-          <div className="md:w-1/3 bg-gray-200 h-64 md:h-auto relative">
-            {tool.logoUrl && (
-              <img 
-                src={tool.logoUrl} 
-                alt={tool.name}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
-          <div className="md:w-2/3 p-6">
-            <div className="flex justify-between items-start">
-              <h1 className="text-3xl font-bold mb-2">{tool.name}</h1>
+        {/* Image de l'outil centrée en haut */}
+        <div className="flex justify-center items-center bg-gray-200 p-6">
+          {tool.logoUrl ? (
+            <img 
+              src={tool.logoUrl} 
+              alt={tool.name}
+              className="max-h-64 object-contain"
+            />
+          ) : (
+            <div className="h-48 w-48 flex items-center justify-center bg-gray-300 rounded-full">
+              <span className="text-2xl font-bold text-gray-500">{tool.name.charAt(0)}</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Métadonnées de l'outil */}
+        <div className="p-6 border-t">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold mb-2">{tool.name}</h1>
+            <div className="flex justify-center items-center gap-2 mb-4">
               <span className={`px-3 py-1 rounded-full text-sm font-medium
                 ${tool.pricingType === "FREE" ? "bg-green-100 text-green-800" : 
                   tool.pricingType === "PAID" ? "bg-red-100 text-red-800" :
@@ -128,6 +140,30 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
                  tool.pricingType === "FREEMIUM" ? "Freemium" : 
                  "Abonnement"}
               </span>
+              
+              {tool.averageRating !== null && (
+                <div className="flex items-center">
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= Math.round(tool.averageRating as number)
+                            ? "text-yellow-400"
+                            : "text-gray-300"
+                        }`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <span className="text-gray-600 ml-2">
+                    {(tool.averageRating as number).toFixed(1)} ({tool.reviewCount} avis)
+                  </span>
+                </div>
+              )}
             </div>
             
             <div className="text-sm text-gray-500 mb-4">
@@ -140,35 +176,11 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
                 </span>
               ))}
             </div>
-            
-            {tool.averageRating !== null && (
-              <div className="flex items-center mb-4">
-                <div className="flex items-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= Math.round(tool.averageRating as number)
-                          ? "text-yellow-400"
-                          : "text-gray-300"
-                      }`}
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-gray-600 ml-2">
-                  {(tool.averageRating as number).toFixed(1)} ({tool.reviewCount} avis)
-                </span>
-              </div>
-            )}
-            
-            <p className="text-gray-700 mb-6">{tool.description}</p>
-            
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
             {tool.pricingDetails && (
-              <div className="mb-4 text-sm">
+              <div className="text-sm">
                 <span className="font-semibold">Détails de tarification:</span> {tool.pricingDetails}
               </div>
             )}
@@ -182,20 +194,22 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
               Visiter le site
             </a>
           </div>
+          
+          {/* Fonctionnalités */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold mb-4">Fonctionnalités</h2>
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {tool.features.map((feature, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
         
-        <div className="p-6 border-t">
-          <h2 className="text-xl font-bold mb-4">Fonctionnalités</h2>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {tool.features.map((feature, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>{feature}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        
+        {/* Tags */}
         {tool.tags.length > 0 && (
           <div className="p-6 border-t">
             <h2 className="text-xl font-bold mb-4">Tags</h2>
@@ -213,6 +227,27 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
         )}
       </div>
       
+      {/* Description de l'outil */}
+      <div className="mt-8 bg-gradient-to-br from-blue-50 via-blue-50 to-indigo-50 rounded-xl shadow-lg p-8 border border-blue-100 relative overflow-hidden">
+        {/* Éléments décoratifs */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-blue-100 rounded-full -mr-20 -mt-20 opacity-50"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-100 rounded-full -ml-12 -mb-12 opacity-50"></div>
+        
+        <div className="relative z-10">
+          <h2 className="text-2xl font-bold mb-4 text-blue-800 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            À propos de {tool.name}
+          </h2>
+          
+          <div className="prose max-w-none">
+            <p className="text-gray-700 leading-relaxed text-lg">{tool.description}</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Outils similaires */}
       {similarTools.length > 0 && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-6">Outils similaires</h2>

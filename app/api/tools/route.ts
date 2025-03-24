@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
       pricingType: tool.pricingType,
       pricingDetails: tool.pricingDetails,
       features: tool.features,
+      isActive: tool.isActive,
       category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
       categoryId: tool.CategoriesOnTools[0]?.categoryId
     }));

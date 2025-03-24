@@ -94,12 +94,16 @@ async function getCategories() {
 async function searchTools(searchTerm: string, page = 1, pageSize = 6) {
   try {
     // Recherche principale - outils qui correspondent directement à la recherche
-    const where: Prisma.ToolWhereInput = searchTerm ? {
-      OR: [
-        { name: { contains: searchTerm, mode: 'insensitive' } },
-        { description: { contains: searchTerm, mode: 'insensitive' } }
-      ]
-    } : {};
+    const where: Prisma.ToolWhereInput = {
+      // Ne récupérer que les outils actifs
+      isActive: true,
+      ...(searchTerm ? {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { description: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      } : {})
+    };
 
     // Compter les résultats pour la pagination
     const totalCount = await db.tool.count({ where });
@@ -205,7 +209,10 @@ async function searchTools(searchTerm: string, page = 1, pageSize = 6) {
 async function getFeaturedTools(page = 1, pageSize = 6, filters: any = {}) {
   try {
     // Construire les conditions de filtrage
-    const where: Prisma.ToolWhereInput = {};
+    const where: Prisma.ToolWhereInput = {
+      // Ne récupérer que les outils actifs
+      isActive: true
+    };
     
     // Filtrage par prix
     if (filters.pricing && filters.pricing.length > 0) {

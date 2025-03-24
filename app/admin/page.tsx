@@ -14,6 +14,7 @@ interface Tool {
   category: string;
   categoryId: string;
   websiteUrl: string;
+  isActive: boolean;
 }
 
 interface Category {
@@ -72,6 +73,34 @@ export default function AdminPage() {
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur de récupération des données:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fonction pour basculer le statut d'un outil (ON/OFF)
+  const toggleToolStatus = async (toolId: string, currentStatus: boolean) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tools/${toolId}/toggle-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour du statut');
+      }
+      
+      // Mettre à jour l'état local
+      setTools(prevTools => 
+        prevTools.map(tool => 
+          tool.id === toolId ? { ...tool, isActive: !tool.isActive } : tool
+        )
+      );
+    } catch (err) {
+      setError((err as Error).message);
+      console.error('Erreur:', err);
     } finally {
       setIsLoading(false);
     }
@@ -242,6 +271,9 @@ export default function AdminPage() {
                         Tarification
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -267,6 +299,20 @@ export default function AdminPage() {
                                tool.pricingType === 'FREEMIUM' ? 'Freemium' : 
                                'Abonnement'}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              tool.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {tool.isActive ? 'ON' : 'OFF'}
+                            </span>
+                            <button
+                              onClick={() => toggleToolStatus(tool.id, tool.isActive)}
+                              className="ml-2 text-xs text-blue-600 hover:text-blue-800"
+                              title={tool.isActive ? "Désactiver" : "Activer"}
+                            >
+                              Basculer
+                            </button>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <Link 
