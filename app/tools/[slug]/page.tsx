@@ -38,7 +38,8 @@ async function getToolBySlug(slug: string) {
       categories: tool.CategoriesOnTools.map(ct => ct.Category),
       tags: tool.TagsOnTools.map(tt => tt.Tag),
       averageRating,
-      reviewCount: tool.Review.length
+      reviewCount: tool.Review.length,
+      features: typeof tool.features === 'string' ? JSON.parse(tool.features) : tool.features
     };
   } catch (error) {
     console.error("Erreur lors de la récupération de l'outil:", error);

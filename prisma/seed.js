@@ -236,11 +236,17 @@ async function main() {
 
   // Insérer tous les outils dans la base de données
   for (const tool of toolsData) {
+    // Convert features array to JSON string for SQLite compatibility
+    const toolWithStringFeatures = {
+      ...tool,
+      features: JSON.stringify(tool.features)
+    };
+    
     // Créer l'outil
     const createdTool = await prisma.tool.upsert({
       where: { slug: tool.slug },
-      update: tool,
-      create: tool
+      update: toolWithStringFeatures,
+      create: toolWithStringFeatures
     });
 
     // Déterminer la catégorie pour l'outil

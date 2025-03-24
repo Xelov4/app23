@@ -39,7 +39,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ slug:
       websiteUrl: tool.websiteUrl,
       pricingType: tool.pricingType,
       pricingDetails: tool.pricingDetails,
-      features: tool.features,
+      features: typeof tool.features === 'string' ? JSON.parse(tool.features) : tool.features,
       categories: tool.CategoriesOnTools.map(ct => ({
         id: ct.Category.id,
         name: ct.Category.name
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
         websiteUrl: data.websiteUrl,
         pricingType: data.pricingType as any, // Type Prisma enum
         pricingDetails: data.pricingDetails,
-        features: data.features
+        features: Array.isArray(data.features) ? JSON.stringify(data.features) : data.features
       },
     });
 

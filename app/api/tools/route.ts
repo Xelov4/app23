@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         websiteUrl: websiteUrl || null,
         pricingType: pricingType || 'FREE',
         pricingDetails: pricingDetails || null,
-        features: features || [],
+        features: JSON.stringify(features || []),
         CategoriesOnTools: {
           create: {
             categoryId
