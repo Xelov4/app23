@@ -7,8 +7,10 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const slug = await params.slug;
+    
     const tool = await db.tool.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       include: {
         CategoriesOnTools: {
           include: {
@@ -64,11 +66,12 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const slug = await params.slug;
     const data = await request.json();
-
+    
     // Vérifier si l'outil existe
     const existingTool = await db.tool.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
     });
 
     if (!existingTool) {
@@ -109,9 +112,11 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const slug = await params.slug;
+    
     // Vérifier si l'outil existe
     const existingTool = await db.tool.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
     });
 
     if (!existingTool) {

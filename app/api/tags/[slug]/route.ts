@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
 
     // Récupérer le tag avec le slug spécifié
     const tag = await db.tag.findUnique({
@@ -52,7 +52,7 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
     const body = await request.json();
     const { name, newSlug } = body;
 
@@ -107,7 +107,7 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
     
     // Vérifier si le tag existe
     const existingTag = await db.tag.findUnique({

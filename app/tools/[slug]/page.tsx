@@ -81,7 +81,8 @@ async function getSimilarTools(categoryId: string, currentToolId: string, limit 
 }
 
 export default async function ToolPage({ params }: { params: { slug: string } }) {
-  const tool = await getToolBySlug(params.slug);
+  const slug = await params.slug;
+  const tool = await getToolBySlug(slug);
   
   if (!tool) {
     notFound();

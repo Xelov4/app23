@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
 
     // Récupérer la catégorie avec le slug spécifié
     const category = await db.category.findUnique({
@@ -54,7 +54,7 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
     const body = await request.json();
     const { name, description, imageUrl, newSlug } = body;
 
@@ -111,7 +111,7 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const { slug } = params;
+    const slug = await params.slug;
     
     // Vérifier si la catégorie existe
     const existingCategory = await db.category.findUnique({
