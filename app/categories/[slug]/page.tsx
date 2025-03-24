@@ -51,9 +51,10 @@ async function getToolsByCategory(categoryId: string) {
   }
 }
 
-export default async function CategoryPage({ params }: { params: { slug: string } }) {
+export default async function CategoryPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const category = await getCategoryBySlug(params.slug);
-  
+
   if (!category) {
     notFound();
   }

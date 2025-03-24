@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { PricingType } from '@prisma/client';
 
 export const revalidate = 3600; // Revalidate the data at most every hour
 
@@ -80,10 +81,11 @@ async function getSimilarTools(categoryId: string, currentToolId: string, limit 
   }
 }
 
-export default async function ToolPage({ params }: { params: { slug: string } }) {
-  const slug = await params.slug;
+export default async function ToolPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
+  const slug = params.slug;
   const tool = await getToolBySlug(slug);
-  
+
   if (!tool) {
     notFound();
   }

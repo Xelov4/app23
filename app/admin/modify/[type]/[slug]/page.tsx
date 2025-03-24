@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Import React Quill dynamiquement pour éviter les erreurs SSR
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+import 'react-quill-new/dist/quill.snow.css';
 
 // Interface pour les données de formulaire
 interface FormData {
@@ -47,6 +52,24 @@ export default function ModifyPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
+
+  // Configuration des modules Quill
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link'],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet',
+    'link'
+  ];
 
   // Chargement des données
   useEffect(() => {
@@ -112,6 +135,11 @@ export default function ModifyPage() {
       ...prev,
       features: prev.features?.filter((_, i) => i !== index)
     }));
+  };
+
+  // Gestionnaire de changement pour l'éditeur Quill
+  const handleDescriptionChange = (content: string) => {
+    setFormData(prev => ({ ...prev, description: content }));
   };
 
   // Amélioration de la description avec Google Gemini
@@ -327,15 +355,31 @@ export default function ModifyPage() {
                     </button>
                   )}
                 </div>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={6}
-                  required
-                />
+                <div className="quill-editor-container">
+                  <ReactQuill
+                    value={formData.description}
+                    onChange={handleDescriptionChange}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    theme="snow"
+                    className="bg-white"
+                    style={{ height: '200px', marginBottom: '40px' }}
+                  />
+                </div>
+                <style jsx>{`
+                  .quill-editor-container {
+                    margin-bottom: 40px;
+                  }
+                  :global(.ql-container) {
+                    min-height: 150px;
+                    border-bottom-left-radius: 0.5rem;
+                    border-bottom-right-radius: 0.5rem;
+                  }
+                  :global(.ql-toolbar) {
+                    border-top-left-radius: 0.5rem;
+                    border-top-right-radius: 0.5rem;
+                  }
+                `}</style>
               </div>
             </div>
             

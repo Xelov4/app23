@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/db";
 
 // GET /api/tags/[slug] - Récupère un tag spécifique par son slug
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
 
     // Récupérer le tag avec le slug spécifié
     const tag = await db.tag.findUnique({
@@ -47,12 +45,10 @@ export async function GET(
 }
 
 // PUT /api/tags/[slug] - Met à jour un tag spécifique
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     const body = await request.json();
     const { name, newSlug } = body;
 
@@ -102,12 +98,10 @@ export async function PUT(
 }
 
 // DELETE /api/tags/[slug] - Supprime un tag spécifique
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     
     // Vérifier si le tag existe
     const existingTag = await db.tag.findUnique({

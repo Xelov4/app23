@@ -1,60 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from "@/lib/db";
 
-// GET /api/categories/[slug] - Récupère une catégorie spécifique par son slug
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+// GET /api/categories/[slug] - Récupère une catégorie spécifique
+export async function GET(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
 
     // Récupérer la catégorie avec le slug spécifié
     const category = await db.category.findUnique({
-      where: { slug },
-      include: {
-        CategoriesOnTools: {
-          include: {
-            Tool: true
-          }
-        }
-      }
+      where: { slug }
     });
 
     if (!category) {
-      return NextResponse.json(
-        { message: 'Catégorie non trouvée' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Catégorie non trouvée' }, { status: 404 });
     }
 
-    // Formatter la réponse
-    const formattedCategory = {
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      description: category.description,
-      imageUrl: category.imageUrl,
-      tools: category.CategoriesOnTools.map((cat: any) => cat.Tool)
-    };
-
-    return NextResponse.json(formattedCategory);
+    return NextResponse.json(category);
   } catch (error) {
     console.error('Erreur lors de la récupération de la catégorie:', error);
-    return NextResponse.json(
-      { message: 'Erreur lors de la récupération de la catégorie' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
 // PUT /api/categories/[slug] - Met à jour une catégorie spécifique
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     const body = await request.json();
     const { name, description, imageUrl, newSlug } = body;
 
@@ -106,12 +79,10 @@ export async function PUT(
 }
 
 // DELETE /api/categories/[slug] - Supprime une catégorie spécifique
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     
     // Vérifier si la catégorie existe
     const existingCategory = await db.category.findUnique({

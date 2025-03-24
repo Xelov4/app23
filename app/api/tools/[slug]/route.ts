@@ -2,27 +2,25 @@ import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET /api/tools/[slug]
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     
     const tool = await db.tool.findUnique({
       where: { slug },
       include: {
         CategoriesOnTools: {
           include: {
-            Category: true
-          }
+            Category: true,
+          },
         },
         TagsOnTools: {
           include: {
-            Tag: true
-          }
-        }
-      }
+            Tag: true,
+          },
+        },
+      },
     });
 
     if (!tool) {
@@ -54,19 +52,17 @@ export async function GET(
   } catch (error) {
     console.error("Erreur lors de la récupération de l'outil:", error);
     return NextResponse.json(
-      { error: "Impossible de récupérer l'outil" },
+      { error: "Erreur serveur" },
       { status: 500 }
     );
   }
 }
 
 // PUT /api/tools/[slug]
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     const data = await request.json();
     
     // Vérifier si l'outil existe
@@ -107,12 +103,10 @@ export async function PUT(
 }
 
 // DELETE /api/tools/[slug]
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   try {
-    const slug = await params.slug;
+    const slug = params.slug;
     
     // Vérifier si l'outil existe
     const existingTool = await db.tool.findUnique({

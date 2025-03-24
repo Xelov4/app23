@@ -302,38 +302,47 @@ async function getFeaturedTools(page = 1, pageSize = 6, filters: any = {}) {
   }
 }
 
-export default async function Home({ searchParams }: { searchParams: { page?: string, category?: string, pricing?: string, search?: string, categories?: string, tags?: string } }) {
-  // Récupérer tous les paramètres
-  const params = await searchParams;
-  const currentPage = params?.page ? parseInt(params.page, 10) : 1;
-  const searchTerm = params?.search || '';
-  
+export default async function Home(
+  props: { searchParams: Promise<{ 
+    page?: string, 
+    category?: string, 
+    pricing?: string, 
+    search?: string,
+    categories?: string,
+    tags?: string
+  }> }
+) {
+  const searchParams = await props.searchParams;
+  // Obtenir la page actuelle à partir des paramètres de requête URL ou par défaut à 1
+  const currentPage = searchParams?.page ? parseInt(searchParams.page, 10) : 1;
+  const searchTerm = searchParams?.search || '';
+
   // Préparer les filtres à partir des paramètres d'URL
   const filters: any = {};
-  
-  if (params?.pricing) {
-    filters.pricing = params.pricing.split(',');
+
+  if (searchParams?.pricing) {
+    filters.pricing = searchParams.pricing.split(',');
   }
-  
-  if (params?.categories) {
-    filters.categories = params.categories.split(',');
+
+  if (searchParams?.categories) {
+    filters.categories = searchParams.categories.split(',');
   }
-  
-  if (params?.tags) {
-    filters.tags = params.tags.split(',');
+
+  if (searchParams?.tags) {
+    filters.tags = searchParams.tags.split(',');
   }
-  
+
   if (searchTerm) {
     filters.search = searchTerm;
   }
-  
+
   // Récupérer les données selon qu'il y a une recherche ou non
   const [filterOptions, featuredCategories, toolsData] = await Promise.all([
     getFilterOptions(),
     getCategories(),
     searchTerm ? searchTools(searchTerm, currentPage) : getFeaturedTools(currentPage, 6, filters)
   ]);
-  
+
   // Données selon qu'il y a une recherche ou non
   const { tools, pagination } = toolsData;
   const relatedTools = 'relatedTools' in toolsData ? toolsData.relatedTools : [];
@@ -369,28 +378,28 @@ export default async function Home({ searchParams }: { searchParams: { page?: st
     
     return items;
   };
-  
+
   const paginationItems = generatePaginationItems(pagination.currentPage, pagination.totalPages);
-  
+
   // Construire l'URL de base pour les liens de pagination et de filtre
   const createPageUrl = (page: number) => {
     const url = new URL('/', 'http://example.com');
     url.searchParams.set('page', page.toString());
     
-    if (params?.search) {
-      url.searchParams.set('search', params.search);
+    if (searchParams?.search) {
+      url.searchParams.set('search', searchParams.search);
     }
     
-    if (params?.pricing) {
-      url.searchParams.set('pricing', params.pricing);
+    if (searchParams?.pricing) {
+      url.searchParams.set('pricing', searchParams.pricing);
     }
     
-    if (params?.categories) {
-      url.searchParams.set('categories', params.categories);
+    if (searchParams?.categories) {
+      url.searchParams.set('categories', searchParams.categories);
     }
     
-    if (params?.tags) {
-      url.searchParams.set('tags', params.tags);
+    if (searchParams?.tags) {
+      url.searchParams.set('tags', searchParams.tags);
     }
     
     return url.pathname + url.search;
