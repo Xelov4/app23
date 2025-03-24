@@ -52,6 +52,11 @@ export default function ModifyPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  
+  // Variables calculées
+  const isScreenshotError = !!screenshotError;
 
   // Configuration des modules Quill
   const quillModules = {
@@ -256,6 +261,51 @@ export default function ModifyPage() {
     }
   };
 
+  // Capture d'écran
+  const captureScreenshot = async () => {
+    if (!formData.websiteUrl) {
+      setScreenshotError("L'URL du site web est requise pour la capture d'écran");
+      return;
+    }
+    
+    setIsCapturingScreenshot(true);
+    setScreenshotError(null);
+    
+    try {
+      const response = await fetch('/api/screenshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: formData.websiteUrl }),
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        // Utilisation directe d'un message d'erreur simple sans template literals
+        throw new Error(responseData.error || "Erreur lors de la capture d'écran");
+      }
+      
+      if (!responseData.success || !responseData.imageUrl) {
+        throw new Error('La capture a échoué: réponse invalide du serveur');
+      }
+      
+      setFormData(prev => ({ ...prev, logoUrl: responseData.imageUrl }));
+      setSuccessMessage('Logo capturé avec succès');
+      
+      // Masquer le message après 3 secondes
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err) {
+      console.error('Erreur lors de la capture d\'écran:', err);
+      setScreenshotError((err as Error).message);
+    } finally {
+      setIsCapturingScreenshot(false);
+    }
+  };
+
   // Affichage pendant le chargement
   if (isLoading) {
     return (
@@ -440,14 +490,36 @@ export default function ModifyPage() {
                 <label className="block text-gray-700 font-bold mb-2" htmlFor="imageUrl">
                   {type === 'tools' ? 'URL du logo' : 'URL de l\'image'}
                 </label>
-                <input
-                  type="url"
-                  id={type === 'tools' ? 'logoUrl' : 'imageUrl'}
-                  name={type === 'tools' ? 'logoUrl' : 'imageUrl'}
-                  value={type === 'tools' ? (formData.logoUrl || '') : (formData.imageUrl || '')}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+                <div className="flex">
+                  <input
+                    type="url"
+                    id={type === 'tools' ? 'logoUrl' : 'imageUrl'}
+                    name={type === 'tools' ? 'logoUrl' : 'imageUrl'}
+                    value={type === 'tools' ? (formData.logoUrl || '') : (formData.imageUrl || '')}
+                    onChange={handleChange}
+                    className="flex-1 px-3 py-2 border rounded-l-lg"
+                  />
+                  {type === 'tools' && (
+                    <button
+                      type="button"
+                      onClick={captureScreenshot}
+                      disabled={isCapturingScreenshot || !formData.websiteUrl}
+                      className={`flex items-center bg-blue-600 text-white px-3 py-2 rounded-r-lg hover:bg-blue-700 transition-colors ${
+                        isCapturingScreenshot || !formData.websiteUrl ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      title={!formData.websiteUrl ? "L'URL du site web est requise" : "Capturer une image du site web"}
+                    >
+                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {isCapturingScreenshot ? 'Capture...' : 'Capturer logo'}
+                    </button>
+                  )}
+                </div>
+                {isScreenshotError && (
+                  <p className="mt-1 text-sm text-red-600">{screenshotError}</p>
+                )}
               </div>
               
               {/* Prévisualisation de l'image si URL fournie */}
