@@ -1,64 +1,94 @@
-import Image from "next/image";
 import Link from "next/link";
+import { db } from "@/lib/db";
 
-export default function Home() {
-  // Données factices pour la démonstration
-  const featuredCategories = [
-    { id: "1", name: "Génération d'images", slug: "generation-images" },
-    { id: "2", name: "Édition vidéo", slug: "edition-video" },
-    { id: "3", name: "Montage automatique", slug: "montage-automatique" },
-  ];
+export const revalidate = 3600; // Revalider les données au maximum toutes les heures
+export const dynamic = 'force-dynamic';
 
-  const featuredTools = [
-    {
-      id: "1",
-      name: "Midjourney",
-      description: "Générateur d'images IA avancé avec des résultats artistiques exceptionnels",
-      imageUrl: "/placeholder.jpg",
-      category: "Génération d'images",
-      pricing: "PAID"
-    },
-    {
-      id: "2",
-      name: "Runway",
-      description: "Plateforme complète d'édition vidéo et création visuelle propulsée par l'IA",
-      imageUrl: "/placeholder.jpg",
-      category: "Édition vidéo",
-      pricing: "FREEMIUM"
-    },
-    {
-      id: "3",
-      name: "DALL-E 3",
-      description: "Générateur d'images IA par OpenAI avec une compréhension avancée du texte",
-      imageUrl: "/placeholder.jpg",
-      category: "Génération d'images",
-      pricing: "PAID"
-    },
-    {
-      id: "4",
-      name: "Descript",
-      description: "Éditeur vidéo basé sur le texte avec des fonctionnalités IA puissantes",
-      imageUrl: "/placeholder.jpg",
-      category: "Montage automatique",
-      pricing: "FREEMIUM"
-    },
-    {
-      id: "5",
-      name: "Stable Diffusion",
-      description: "Générateur d'images open-source hautement personnalisable",
-      imageUrl: "/placeholder.jpg",
-      category: "Génération d'images",
-      pricing: "FREE"
-    },
-    {
-      id: "6",
-      name: "Pika Labs",
-      description: "Plateforme de création vidéo IA à partir d'images ou de texte",
-      imageUrl: "/placeholder.jpg",
-      category: "Édition vidéo",
-      pricing: "FREEMIUM"
-    },
-  ];
+async function getCategories() {
+  try {
+    return await db.category.findMany({
+      take: 3,
+      orderBy: {
+        CategoriesOnTools: {
+          _count: 'desc'
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Échec de la récupération des catégories:", error);
+    return [];
+  }
+}
+
+async function getFeaturedTools(page = 1, pageSize = 6) {
+  try {
+    // Obtenir le nombre total pour la pagination
+    const totalCount = await db.tool.count();
+    
+    // Calculer la pagination
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const skip = (page - 1) * pageSize;
+    
+    // Obtenir les outils avec pagination
+    const tools = await db.tool.findMany({
+      skip,
+      take: pageSize,
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      include: {
+        CategoriesOnTools: {
+          include: {
+            Category: true
+          }
+        }
+      }
+    });
+
+    // Transformer les données dans un format plus simple
+    const transformedTools = tools.map(tool => ({
+      id: tool.id,
+      slug: tool.slug,
+      name: tool.name,
+      description: tool.description,
+      imageUrl: tool.logoUrl,
+      category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
+      pricing: tool.pricingType
+    }));
+
+    return {
+      tools: transformedTools,
+      pagination: {
+        totalItems: totalCount,
+        totalPages,
+        currentPage: page,
+        pageSize
+      }
+    };
+  } catch (error) {
+    console.error("Échec de la récupération des outils:", error);
+    return { 
+      tools: [], 
+      pagination: {
+        totalItems: 0,
+        totalPages: 0,
+        currentPage: page,
+        pageSize
+      } 
+    };
+  }
+}
+
+export default async function Home({ searchParams }: { searchParams: { page?: string } }) {
+  // Obtenir la page actuelle à partir des paramètres de requête URL ou par défaut à 1
+  const currentPage = searchParams.page ? parseInt(searchParams.page, 10) : 1;
+  
+  const [featuredCategories, featuredToolsData] = await Promise.all([
+    getCategories(),
+    getFeaturedTools(currentPage)
+  ]);
+  
+  const { tools: featuredTools, pagination } = featuredToolsData;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -103,6 +133,13 @@ export default function Home() {
           {featuredTools.map((tool) => (
             <div key={tool.id} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
               <div className="h-48 bg-gray-200 relative">
+                {tool.imageUrl && (
+                  <img 
+                    src={tool.imageUrl} 
+                    alt={tool.name}
+                    className="w-full h-full object-cover"
+                  />
+                )}
                 <div className="absolute top-2 right-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
                   {tool.pricing === "FREE" ? "Gratuit" : 
                    tool.pricing === "PAID" ? "Payant" : 
@@ -115,7 +152,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold mb-2">{tool.name}</h3>
                 <p className="text-gray-600 line-clamp-2">{tool.description}</p>
                 <Link 
-                  href={`/tools/${tool.id}`}
+                  href={`/tools/${tool.slug}`}
                   className="mt-4 inline-block text-blue-600 hover:underline"
                 >
                   Voir plus →
@@ -124,6 +161,45 @@ export default function Home() {
             </div>
           ))}
         </div>
+        
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <nav className="inline-flex rounded-md shadow">
+              {pagination.currentPage > 1 && (
+                <Link
+                  href={`/?page=${pagination.currentPage - 1}`}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium hover:bg-gray-50"
+                >
+                  Précédent
+                </Link>
+              )}
+              
+              {Array.from({ length: pagination.totalPages }, (_, i) => (
+                <Link
+                  key={i + 1}
+                  href={`/?page=${i + 1}`}
+                  className={`relative inline-flex items-center px-4 py-2 border ${
+                    i + 1 === pagination.currentPage
+                      ? 'border-blue-500 bg-blue-50 text-blue-600'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  } text-sm font-medium`}
+                >
+                  {i + 1}
+                </Link>
+              ))}
+              
+              {pagination.currentPage < pagination.totalPages && (
+                <Link
+                  href={`/?page=${pagination.currentPage + 1}`}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium hover:bg-gray-50"
+                >
+                  Suivant
+                </Link>
+              )}
+            </nav>
+          </div>
+        )}
       </section>
     </div>
   );
