@@ -102,6 +102,9 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
     ? await getSimilarTools(primaryCategoryId, tool.id) 
     : [];
 
+  // Le contenu HTML sera utilisé directement sans conversion puisqu'il est déjà en HTML
+  const descriptionHtml = tool.description || '';
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mb-6">
@@ -242,7 +245,10 @@ export default async function ToolPage(props: { params: Promise<{ slug: string }
           </h2>
           
           <div className="prose max-w-none">
-            <p className="text-gray-700 leading-relaxed text-lg">{tool.description}</p>
+            <div 
+              className="markdown-content text-gray-700 leading-relaxed text-lg"
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
           </div>
         </div>
       </div>

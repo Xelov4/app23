@@ -56,12 +56,7 @@ export default function Navigation() {
           </div>
           
           <div className="hidden md:block">
-            <Link 
-              href="/admin" 
-              className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md"
-            >
-              Admin
-            </Link>
+            {/* Bouton Admin supprimé intentionnellement pour cacher l'accès à l'administration */}
           </div>
           
           <div className="md:hidden">

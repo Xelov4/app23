@@ -24,6 +24,7 @@ interface FormData {
   features?: string[];
   category?: string;
   categoryId?: string;
+  httpCode?: number | null;
 }
 
 export default function ModifyPage() {
@@ -105,7 +106,8 @@ export default function ModifyPage() {
           pricingDetails: data.pricingDetails || '',
           features: data.features || [],
           category: data.category || '',
-          categoryId: data.categoryId || ''
+          categoryId: data.categoryId || '',
+          httpCode: data.httpCode || null
         });
       } catch (err) {
         console.error('Erreur:', err);
@@ -153,11 +155,43 @@ export default function ModifyPage() {
     setError(null);
     
     try {
-      const prompt = `enrichie cette description avec le plus d'informations possible, entre 500 et 1000 mots: 
-      
-      Site: ${formData.websiteUrl || ''}
-      
-      Description actuelle: ${formData.description}`;
+      const prompt = `Tu es un expert en rédaction de descriptions détaillées et convaincantes pour des outils d'IA. Améliore la description fournie pour l'outil "${formData.name}" qui est une solution d'IA dans le domaine du traitement vidéo/image/audio.
+
+Consignes:
+1. Format: Génère UNIQUEMENT du HTML valide et bien structuré
+2. Longueur idéale: entre 500 et 1000 mots
+3. Structure obligatoire:
+   - Utilise des balises <h3> pour les sous-titres
+   - Utilise des balises <p> pour les paragraphes
+   - Utilise des balises <ul> et <li> pour les listes
+   - Inclus au moins 2-3 sous-sections avec titres
+4. Contenu requis:
+   - Introduction présentant l'outil et son utilité principale
+   - Section sur les fonctionnalités principales (liste)
+   - Section sur les avantages clés pour les utilisateurs
+   - Section sur des cas d'utilisation concrets
+   - Mention du modèle économique (${formData.pricingType})
+5. Liens obligatoires:
+   - Inclus OBLIGATOIREMENT au moins un lien externe (vers un site pertinent) avec <a href="URL" target="_blank" rel="noopener noreferrer">texte du lien</a>
+   - Si possible, ajoute un lien vers une catégorie pertinente avec <a href="/categories/NOM-CATEGORIE">texte du lien</a>
+6. Style et ton:
+   - Professionnel et informatif
+   - Légèrement promotionnel mais factuel
+   - Utilise un vocabulaire technique approprié
+7. Autres éléments:
+   - Conserve toutes les informations factuelles de la description originale
+   - N'invente pas de fonctionnalités qui ne seraient pas mentionnées
+   - Enrichis le contenu sans exagérer les capacités réelles
+
+IMPORTANT: N'utilise absolument PAS les délimiteurs comme \`\`\`html ou \`\`\` dans ta réponse. Fournis UNIQUEMENT le contenu HTML brut sans aucun formatage ou texte supplémentaire.
+
+Site web: ${formData.websiteUrl || ''}
+Type de tarification: ${formData.pricingType || 'FREE'}
+
+Description originale:
+${formData.description}
+
+Réponds uniquement avec le code HTML de la description améliorée, sans balises englobantes <html>, <body>, etc. et sans délimiteurs de code markdown (\`\`\`).`;
       
       const response = await fetch(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyB5Jku7K8FwTM0LcC3Iihfo4btAJ6IgCcA",
@@ -169,7 +203,13 @@ export default function ModifyPage() {
           body: JSON.stringify({
             contents: [{
               parts: [{ text: prompt }]
-            }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topP: 0.95,
+              topK: 40,
+              maxOutputTokens: 4000,
+            }
           }),
         }
       );
@@ -181,7 +221,14 @@ export default function ModifyPage() {
       const data = await response.json();
       
       if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-        const enhancedDescription = data.candidates[0].content.parts[0].text;
+        let enhancedDescription = data.candidates[0].content.parts[0].text;
+        
+        // Supprimer les délimiteurs de code markdown s'ils sont présents
+        enhancedDescription = enhancedDescription
+          .replace(/^```html\s*/i, '')  // Supprime ```html au début
+          .replace(/^```\s*/i, '')      // Supprime ``` au début
+          .replace(/\s*```$/i, '');     // Supprime ``` à la fin
+        
         setFormData(prev => ({ ...prev, description: enhancedDescription }));
         setSuccessMessage('Description améliorée avec Google Gemini');
         
@@ -596,6 +643,38 @@ export default function ModifyPage() {
                   <p className="text-gray-500 text-center py-2">Aucune fonctionnalité ajoutée</p>
                 )}
               </div>
+            </div>
+          )}
+          
+          {/* AJOUTER CETTE SECTION POUR LES OUTILS */}
+          {type === 'tools' && (
+            <div className="mb-6">
+              <div className="flex items-center space-x-2 mb-2">
+                <label className="font-medium">Statut HTTP :</label>
+                {formData.httpCode ? (
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    formData.httpCode === 200 ? 'bg-green-100 text-green-800' :
+                    formData.httpCode >= 300 && formData.httpCode < 400 ? 'bg-blue-100 text-blue-800' :
+                    formData.httpCode >= 400 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {formData.httpCode}
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400">Non vérifié</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsCapturingScreenshot(true)}
+                  className="ml-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  disabled={isCapturingScreenshot}
+                >
+                  {isCapturingScreenshot ? 'Vérification...' : 'Vérifier maintenant'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Le code HTTP est vérifié automatiquement lors de la capture d'écran.
+                Vert = OK (200), Bleu = Redirection (3xx), Rouge = Erreur (4xx/5xx)
+              </p>
             </div>
           )}
           

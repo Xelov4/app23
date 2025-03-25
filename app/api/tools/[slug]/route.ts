@@ -40,6 +40,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ slug:
       pricingType: tool.pricingType,
       pricingDetails: tool.pricingDetails,
       features: typeof tool.features === 'string' ? JSON.parse(tool.features) : tool.features,
+      httpCode: tool.httpCode,
       categories: tool.CategoriesOnTools.map(ct => ({
         id: ct.Category.id,
         name: ct.Category.name
@@ -91,6 +92,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
     if (data.features !== undefined) {
       updateData.features = Array.isArray(data.features) ? JSON.stringify(data.features) : data.features;
     }
+    if (data.httpCode !== undefined) updateData.httpCode = data.httpCode;
 
     console.log('Données de mise à jour:', updateData);
 

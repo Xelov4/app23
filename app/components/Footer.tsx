@@ -42,8 +42,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="text-gray-600 hover:text-blue-600">
-                  Administration
+                <Link href="/sitemap" className="text-gray-600 hover:text-blue-600">
+                  Plan du site
                 </Link>
               </li>
             </ul>

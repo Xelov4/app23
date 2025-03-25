@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       pricingDetails: tool.pricingDetails,
       features: tool.features,
       isActive: tool.isActive,
+      httpCode: tool.httpCode || null,
       category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
       categoryId: tool.CategoriesOnTools[0]?.categoryId
     }));

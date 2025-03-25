@@ -3,15 +3,109 @@ import * as puppeteer from 'puppeteer';
 import * as path from 'path';
 import * as fs from 'fs';
 import sharp from 'sharp';
+import { db } from '@/lib/db';
+import dns from 'dns';
+import { promisify } from 'util';
+
+const dnsLookup = promisify(dns.lookup);
+
+// Fonction pour vérifier rapidement si un domaine est résolvable
+async function isDomainResolvable(url: string): Promise<boolean> {
+  try {
+    const { hostname } = new URL(url);
+    
+    // Timeout de 2 secondes pour la résolution DNS
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    
+    try {
+      await dnsLookup(hostname);
+      clearTimeout(timeoutId);
+      return true;
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        console.log(`Timeout DNS pour ${hostname}`);
+      }
+      return false;
+    }
+  } catch (error) {
+    console.error(`Erreur lors de la vérification DNS pour ${url}:`, error);
+    return false;
+  }
+}
+
+// Fonction pour suivre les redirections HTTP
+async function followRedirects(url: string, maxRedirects = 5): Promise<{ chain: string, finalCode: number }> {
+  let currentUrl = url;
+  let redirectChain: string[] = [];
+  let finalCode = 0;
+  let redirectCount = 0;
+  
+  try {
+    // Timeout de 5 secondes pour les requêtes
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
+    
+    while (redirectCount < maxRedirects) {
+      const response = await fetch(currentUrl, { 
+        method: 'HEAD', 
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        signal: timeoutController.signal
+      });
+      
+      const statusCode = response.status;
+      redirectChain.push(statusCode.toString());
+      
+      if (statusCode >= 300 && statusCode < 400) {
+        const location = response.headers.get('location');
+        if (!location) break;
+        
+        // Construire l'URL complète si c'est un chemin relatif
+        const nextUrl = new URL(location, currentUrl).toString();
+        currentUrl = nextUrl;
+        redirectCount++;
+      } else {
+        finalCode = statusCode;
+        break;
+      }
+    }
+    
+    clearTimeout(timeoutId);
+    return {
+      chain: redirectChain.join(' > '),
+      finalCode: finalCode
+    };
+  } catch (error) {
+    console.error(`Erreur lors du suivi des redirections pour ${url}:`, error);
+    if (error.name === 'AbortError') {
+      return {
+        chain: 'Timeout',
+        finalCode: 0
+      };
+    }
+    return {
+      chain: redirectChain.length > 0 ? redirectChain.join(' > ') : 'Erreur',
+      finalCode: 0
+    };
+  }
+}
 
 export async function POST(request: NextRequest) {
   let browser = null;
   let originalFilePath = '';
   let resizedFilePath = '';
+  let httpStatusCode = null;
+  let httpRedirectChain = '';
+  let slug = '';
   
   try {
     console.log('API de capture d\'écran appelée');
-    const { url, slug } = await request.json();
+    const { url, slug: requestSlug } = await request.json();
+    slug = requestSlug;
     
     if (!url) {
       return NextResponse.json({ 
@@ -35,7 +129,9 @@ export async function POST(request: NextRequest) {
       const imageUrl = url;
       return NextResponse.json({ 
         success: true, 
-        imageUrl 
+        imageUrl,
+        httpCode: 200,
+        httpChain: '200'
       });
     }
 
@@ -45,20 +141,9 @@ export async function POST(request: NextRequest) {
     } catch (urlError) {
       return NextResponse.json({ 
         error: 'URL invalide',
-        success: false
-      }, { status: 400 });
-    }
-
-    // Vérifier l'accessibilité de l'URL
-    try {
-      const response = await fetch(url, { method: 'HEAD' });
-      if (!response.ok) {
-        throw new Error(`URL inaccessible: ${response.status}`);
-      }
-    } catch (error) {
-      return NextResponse.json({ 
-        error: 'URL inaccessible',
-        success: false
+        success: false,
+        httpCode: 0,
+        httpChain: 'URL invalide'
       }, { status: 400 });
     }
 
@@ -73,6 +158,96 @@ export async function POST(request: NextRequest) {
     const fileName = `${slug}.png`;
     originalFilePath = path.join(screenshotsDir, `original_${fileName}`);
     resizedFilePath = path.join(screenshotsDir, fileName);
+
+    // Vérifier RAPIDEMENT si le domaine est résolvable (timeout court)
+    const isDnsResolvable = await isDomainResolvable(url);
+    
+    if (!isDnsResolvable) {
+      httpStatusCode = 0;
+      httpRedirectChain = 'DNS';
+      
+      // Mise à jour dans la base de données
+      if (slug) {
+        await db.tool.update({
+          where: { slug },
+          data: { 
+            httpCode: 0,
+            httpChain: 'DNS'
+          }
+        });
+      }
+      
+      // Retourner une image d'erreur
+      const errorImagePath = path.join(process.cwd(), 'public', 'images', 'error.png');
+      if (fs.existsSync(errorImagePath)) {
+        fs.copyFileSync(errorImagePath, resizedFilePath);
+        const imageUrl = `/images/tools/screenshots/${fileName}`;
+        
+        return NextResponse.json({
+          success: true,
+          imageUrl,
+          httpCode: 0,
+          httpChain: 'DNS',
+          isErrorImage: true
+        });
+      }
+      
+      return NextResponse.json({
+        success: false,
+        error: 'DNS non résolu',
+        httpCode: 0,
+        httpChain: 'DNS'
+      });
+    }
+
+    // Vérifier l'accessibilité de l'URL et suivre les redirections
+    try {
+      const { chain, finalCode } = await followRedirects(url);
+      httpStatusCode = finalCode;
+      httpRedirectChain = chain;
+      
+      // Mise à jour dans la base de données
+      if (slug) {
+        await db.tool.update({
+          where: { slug },
+          data: { 
+            httpCode: httpStatusCode,
+            httpChain: httpRedirectChain
+          }
+        });
+      }
+      
+      // Si erreur HTTP, on peut s'arrêter là et renvoyer une image d'erreur
+      if (httpStatusCode >= 400 || httpStatusCode === 0) {
+        const errorImagePath = path.join(process.cwd(), 'public', 'images', 'error.png');
+        if (fs.existsSync(errorImagePath)) {
+          fs.copyFileSync(errorImagePath, resizedFilePath);
+          const imageUrl = `/images/tools/screenshots/${fileName}`;
+          
+          return NextResponse.json({
+            success: true,
+            imageUrl,
+            httpCode: httpStatusCode,
+            httpChain: httpRedirectChain,
+            isErrorImage: true
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Erreur lors de la vérification de l'URL ${url}:`, error);
+      httpStatusCode = 0;
+      httpRedirectChain = 'Erreur';
+      
+      if (slug) {
+        await db.tool.update({
+          where: { slug },
+          data: { 
+            httpCode: 0,
+            httpChain: 'Erreur'
+          }
+        });
+      }
+    }
 
     // Supprimer les fichiers existants s'ils existent
     [originalFilePath, resizedFilePath].forEach(filePath => {
@@ -89,48 +264,130 @@ export async function POST(request: NextRequest) {
     console.log('Lancement du navigateur');
     
     // Lancer le navigateur headless avec des options optimisées
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process'
-      ]
-    });
+    try {
+      browser = await puppeteer.launch({
+        headless: 'new',
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--window-size=1920,1080'
+        ]
+      });
+    } catch (browserError) {
+      console.error('Erreur lors du lancement du navigateur:', browserError);
+      
+      // Enregistrer l'erreur dans la base de données
+      if (slug) {
+        try {
+          await db.tool.update({
+            where: { slug },
+            data: { 
+              httpCode: httpStatusCode || 0,
+              httpChain: httpRedirectChain || 'Erreur Puppeteer'
+            }
+          });
+        } catch (dbError) {
+          console.error('Erreur lors de la mise à jour du code HTTP dans la base de données:', dbError);
+        }
+      }
+      
+      // Retourner une réponse claire
+      return NextResponse.json({ 
+        error: browserError instanceof Error ? browserError.message : 'Erreur lors du lancement du navigateur',
+        success: false,
+        httpCode: httpStatusCode || 0,
+        httpChain: httpRedirectChain || 'Erreur Puppeteer',
+        errorType: 'BROWSER_LAUNCH_ERROR'
+      }, { status: 500 });
+    }
     
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
+    // Viewport haute résolution
+    await page.setViewport({ width: 1920, height: 1080 });
 
-    // Définir un timeout plus court pour les ressources
-    await page.setDefaultNavigationTimeout(30000);
-    await page.setDefaultTimeout(30000);
+    // Définir un timeout plus long pour les ressources
+    await page.setDefaultNavigationTimeout(100000); // 100 secondes comme demandé
+    await page.setDefaultTimeout(100000);
 
-    // Navigation avec gestion des erreurs
+    // Intercepter les requêtes pour optimiser
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      // Bloquer les ressources non essentielles pour accélérer le chargement
+      const resourceType = request.resourceType();
+      if (['media', 'font', 'websocket', 'manifest'].includes(resourceType)) {
+        request.abort();
+      } else if (resourceType === 'image' && request.url().match(/\.(svg|gif|webp)$/i)) {
+        // Bloquer certains types d'images qui ne sont pas critiques
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
+    
+    // Navigation avec gestion des erreurs et interception des redirections
     console.log('Navigation vers:', url);
+    
+    // Collecter les redirections pendant la navigation
+    const responseChain: number[] = [];
+    page.on('response', response => {
+      const status = response.status();
+      if (status >= 300 && status < 400) {
+        responseChain.push(status);
+      }
+    });
+    
     const response = await page.goto(url, { 
-      waitUntil: 'networkidle0',
-      timeout: 30000 
+      waitUntil: 'domcontentloaded', // Plus rapide que 'networkidle0'
+      timeout: 100000 // 100 secondes comme demandé
     });
 
-    if (!response.ok()) {
-      throw new Error(`Navigation failed: ${response.status()}`);
+    // Capturer le code HTTP de la réponse puppeteer
+    if (response) {
+      const finalStatus = response.status();
+      responseChain.push(finalStatus);
+      
+      // Si une chaîne n'a pas déjà été enregistrée avec followRedirects
+      if (!httpRedirectChain || httpRedirectChain === 'Erreur') {
+        httpRedirectChain = responseChain.join(' > ');
+      }
+      
+      // Mise à jour du code HTTP dans la base de données
+      if (slug) {
+        await db.tool.update({
+          where: { slug },
+          data: { 
+            httpCode: finalStatus,
+            httpChain: httpRedirectChain
+          }
+        });
+      }
     }
 
-    // Attente pour le chargement complet avec timeout
+    // Attente pour le chargement minimal (éviter de longues attentes)
     console.log('Attente pour chargement');
     await Promise.race([
-      new Promise(resolve => setTimeout(resolve, 2000)),
+      new Promise(resolve => setTimeout(resolve, 3000)), // 3 secondes max
       page.waitForSelector('body', { timeout: 5000 })
     ]);
     
-    // Capture avec timeout
+    // Faire défiler la page pour forcer le chargement des éléments visibles
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 2);
+      window.scrollTo(0, 0);
+    });
+    
+    // Capture en haute résolution
     console.log('Capture d\'écran');
     await page.screenshot({ 
       path: originalFilePath,
-      timeout: 5000
+      type: 'png',
+      fullPage: false,
+      timeout: 10000
     });
     
     // Fermeture du navigateur
@@ -139,34 +396,38 @@ export async function POST(request: NextRequest) {
       browser = null;
     }
     
-    // Redimensionnement avec gestion d'erreur
-    console.log('Redimensionnement de l\'image');
+    // Optimiser l'image sans perdre de qualité
+    console.log('Traitement de l\'image');
     await sharp(originalFilePath)
-      .resize(200, 200, {
-        fit: 'contain',
-        background: { r: 255, g: 255, b: 255, alpha: 0 }
+      .resize(1280, 720, {
+        fit: 'inside',
+        withoutEnlargement: true
       })
+      .png()
       .toFile(resizedFilePath);
-    
-    // Suppression du fichier original
+      
+    // Supprimer l'image originale après le redimensionnement
     try {
       fs.unlinkSync(originalFilePath);
-    } catch (error) {
-      console.error('Erreur lors de la suppression du fichier original:', error);
+      console.log('Image originale supprimée');
+    } catch (unlinkError) {
+      console.error('Erreur lors de la suppression de l\'image originale:', unlinkError);
     }
     
-    // URL pour le frontend
     const imageUrl = `/images/tools/screenshots/${fileName}`;
+    console.log('Capture d\'écran réussie:', imageUrl);
     
-    return NextResponse.json({ 
-      success: true, 
-      imageUrl 
+    return NextResponse.json({
+      success: true,
+      imageUrl,
+      httpCode: httpStatusCode,
+      httpChain: httpRedirectChain
     });
     
   } catch (error) {
     console.error('Erreur lors de la capture d\'écran:', error);
     
-    // Nettoyage en cas d'erreur
+    // Fermer le navigateur en cas d'erreur
     if (browser) {
       try {
         await browser.close();
@@ -175,20 +436,26 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Suppression des fichiers temporaires en cas d'erreur
-    [originalFilePath, resizedFilePath].forEach(filePath => {
-      if (filePath && fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (unlinkError) {
-          console.error('Erreur lors de la suppression du fichier:', unlinkError);
-        }
+    // Mise à jour de la base de données en cas d'erreur
+    if (slug) {
+      try {
+        await db.tool.update({
+          where: { slug },
+          data: { 
+            httpCode: httpStatusCode || 0,
+            httpChain: httpRedirectChain || 'Erreur'
+          }
+        });
+      } catch (dbError) {
+        console.error('Erreur lors de la mise à jour du code HTTP dans la base de données:', dbError);
       }
-    });
-
-    return NextResponse.json({ 
-      error: error.message || 'Erreur lors de la capture d\'écran',
-      success: false
+    }
+    
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      success: false,
+      httpCode: httpStatusCode,
+      httpChain: httpRedirectChain || 'Erreur'
     }, { status: 500 });
   }
 } 

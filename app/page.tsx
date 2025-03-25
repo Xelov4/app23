@@ -1,9 +1,29 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { marked } from "marked";
 
 export const revalidate = 3600; // Revalider les données au maximum toutes les heures
 export const dynamic = 'force-dynamic';
+
+// Fonction pour extraire le texte brut du HTML
+function htmlToPlainText(html: string): string {
+  try {
+    // Supprimer les balises HTML
+    const plainText = html.replace(/<[^>]*>?/gm, '');
+    // Remplacer les entités HTML courantes
+    return plainText
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  } catch (error) {
+    console.error("Erreur lors de la conversion du HTML en texte brut:", error);
+    return html; // Retourner le HTML original en cas d'erreur
+  }
+}
 
 // Association d'emoji pour chaque catégorie
 const categoryEmojis: Record<string, string> = {
@@ -134,7 +154,7 @@ async function searchTools(searchTerm: string, page = 1, pageSize = 6) {
       id: tool.id,
       slug: tool.slug,
       name: tool.name,
-      description: tool.description,
+      description: htmlToPlainText(tool.description),
       imageUrl: tool.logoUrl,
       category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
       pricing: tool.pricingType
@@ -280,7 +300,7 @@ async function getFeaturedTools(page = 1, pageSize = 6, filters: any = {}) {
       id: tool.id,
       slug: tool.slug,
       name: tool.name,
-      description: tool.description,
+      description: htmlToPlainText(tool.description),
       imageUrl: tool.logoUrl,
       category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
       pricing: tool.pricingType
