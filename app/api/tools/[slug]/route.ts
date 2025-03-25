@@ -41,6 +41,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ slug:
       pricingDetails: tool.pricingDetails,
       features: typeof tool.features === 'string' ? JSON.parse(tool.features) : tool.features,
       httpCode: tool.httpCode,
+      twitterUrl: tool.twitterUrl,
+      instagramUrl: tool.instagramUrl,
+      facebookUrl: tool.facebookUrl,
+      linkedinUrl: tool.linkedinUrl,
+      githubUrl: tool.githubUrl,
       categories: tool.CategoriesOnTools.map(ct => ({
         id: ct.Category.id,
         name: ct.Category.name
@@ -93,6 +98,11 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
       updateData.features = Array.isArray(data.features) ? JSON.stringify(data.features) : data.features;
     }
     if (data.httpCode !== undefined) updateData.httpCode = data.httpCode;
+    if (data.twitterUrl !== undefined) updateData.twitterUrl = data.twitterUrl;
+    if (data.instagramUrl !== undefined) updateData.instagramUrl = data.instagramUrl;
+    if (data.facebookUrl !== undefined) updateData.facebookUrl = data.facebookUrl;
+    if (data.linkedinUrl !== undefined) updateData.linkedinUrl = data.linkedinUrl;
+    if (data.githubUrl !== undefined) updateData.githubUrl = data.githubUrl;
 
     console.log('Données de mise à jour:', updateData);
 

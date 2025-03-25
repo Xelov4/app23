@@ -16,6 +16,11 @@ interface FormData {
   pricingDetails?: string;
   features?: string[];
   categoryId?: string;
+  twitterUrl?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
 }
 
 export default function AddPage() {
@@ -34,7 +39,12 @@ export default function AddPage() {
     pricingType: 'FREE',
     pricingDetails: '',
     features: [],
-    categoryId: ''
+    categoryId: '',
+    twitterUrl: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    linkedinUrl: '',
+    githubUrl: ''
   });
   const [error, setError] = useState<string | null>(null);
   const [feature, setFeature] = useState('');
@@ -431,6 +441,88 @@ export default function AddPage() {
                 ) : (
                   <p className="text-gray-500 text-center py-2">Aucune fonctionnalité ajoutée</p>
                 )}
+              </div>
+            </div>
+          )}
+          
+          {/* Section des réseaux sociaux - seulement pour les outils */}
+          {type === 'tools' && (
+            <div className="mt-8 mb-6 p-6 bg-white rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-4">Réseaux Sociaux</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Ajoutez les liens vers les profils de réseaux sociaux de l'outil (optionnel)
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Twitter / X
+                  </label>
+                  <input
+                    type="url"
+                    name="twitterUrl"
+                    value={formData.twitterUrl}
+                    onChange={handleChange}
+                    placeholder="https://twitter.com/username"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Instagram
+                  </label>
+                  <input
+                    type="url"
+                    name="instagramUrl"
+                    value={formData.instagramUrl}
+                    onChange={handleChange}
+                    placeholder="https://instagram.com/username"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Facebook
+                  </label>
+                  <input
+                    type="url"
+                    name="facebookUrl"
+                    value={formData.facebookUrl}
+                    onChange={handleChange}
+                    placeholder="https://facebook.com/pagename"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    LinkedIn
+                  </label>
+                  <input
+                    type="url"
+                    name="linkedinUrl"
+                    value={formData.linkedinUrl}
+                    onChange={handleChange}
+                    placeholder="https://linkedin.com/company/name"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GitHub
+                  </label>
+                  <input
+                    type="url"
+                    name="githubUrl"
+                    value={formData.githubUrl}
+                    onChange={handleChange}
+                    placeholder="https://github.com/organization"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
           )}

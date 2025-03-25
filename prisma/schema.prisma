@@ -30,6 +30,11 @@ model Tool {
   rating            Float?
   reviewCount       Int?
   httpCode          Int?                // Code HTTP retourné lors de la vérification du site
+  twitterUrl        String?             // URL du compte Twitter/X
+  instagramUrl      String?             // URL du compte Instagram
+  facebookUrl       String?             // URL du compte Facebook
+  linkedinUrl       String?             // URL du compte LinkedIn
+  githubUrl         String?             // URL du compte GitHub
   isActive          Boolean             @default(true)  // Indique si l'outil est actif (ON) ou inactif (OFF)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt

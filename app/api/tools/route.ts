@@ -33,6 +33,11 @@ export async function GET(request: NextRequest) {
       features: tool.features,
       isActive: tool.isActive,
       httpCode: tool.httpCode || null,
+      twitterUrl: tool.twitterUrl || null,
+      instagramUrl: tool.instagramUrl || null,
+      facebookUrl: tool.facebookUrl || null,
+      linkedinUrl: tool.linkedinUrl || null,
+      githubUrl: tool.githubUrl || null,
       category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
       categoryId: tool.CategoriesOnTools[0]?.categoryId
     }));
@@ -61,7 +66,12 @@ export async function POST(request: NextRequest) {
       pricingType, 
       pricingDetails, 
       features, 
-      categoryId 
+      categoryId,
+      twitterUrl,
+      instagramUrl,
+      facebookUrl,
+      linkedinUrl,
+      githubUrl
     } = body;
 
     // Vérification si un outil avec ce slug existe déjà
@@ -100,6 +110,11 @@ export async function POST(request: NextRequest) {
         pricingType: pricingType || 'FREE',
         pricingDetails: pricingDetails || null,
         features: JSON.stringify(features || []),
+        twitterUrl: twitterUrl || null,
+        instagramUrl: instagramUrl || null,
+        facebookUrl: facebookUrl || null,
+        linkedinUrl: linkedinUrl || null,
+        githubUrl: githubUrl || null,
         CategoriesOnTools: {
           create: {
             categoryId

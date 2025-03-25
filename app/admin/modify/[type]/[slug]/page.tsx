@@ -25,6 +25,11 @@ interface FormData {
   category?: string;
   categoryId?: string;
   httpCode?: number | null;
+  twitterUrl?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
 }
 
 export default function ModifyPage() {
@@ -43,7 +48,12 @@ export default function ModifyPage() {
     websiteUrl: '',
     pricingType: 'FREE',
     pricingDetails: '',
-    features: []
+    features: [],
+    twitterUrl: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    linkedinUrl: '',
+    githubUrl: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +117,12 @@ export default function ModifyPage() {
           features: data.features || [],
           category: data.category || '',
           categoryId: data.categoryId || '',
-          httpCode: data.httpCode || null
+          httpCode: data.httpCode || null,
+          twitterUrl: data.twitterUrl || '',
+          instagramUrl: data.instagramUrl || '',
+          facebookUrl: data.facebookUrl || '',
+          linkedinUrl: data.linkedinUrl || '',
+          githubUrl: data.githubUrl || ''
         });
       } catch (err) {
         console.error('Erreur:', err);
@@ -675,6 +690,88 @@ Réponds uniquement avec le code HTML de la description améliorée, sans balise
                 Le code HTTP est vérifié automatiquement lors de la capture d'écran.
                 Vert = OK (200), Bleu = Redirection (3xx), Rouge = Erreur (4xx/5xx)
               </p>
+            </div>
+          )}
+          
+          {/* Section des réseaux sociaux */}
+          {type === 'tools' && (
+            <div className="mb-6 p-6 bg-white rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-4">Réseaux Sociaux</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Ajoutez les liens vers les profils de réseaux sociaux de l'outil (optionnel)
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Twitter / X
+                  </label>
+                  <input
+                    type="url"
+                    name="twitterUrl"
+                    value={formData.twitterUrl}
+                    onChange={handleChange}
+                    placeholder="https://twitter.com/username"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Instagram
+                  </label>
+                  <input
+                    type="url"
+                    name="instagramUrl"
+                    value={formData.instagramUrl}
+                    onChange={handleChange}
+                    placeholder="https://instagram.com/username"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Facebook
+                  </label>
+                  <input
+                    type="url"
+                    name="facebookUrl"
+                    value={formData.facebookUrl}
+                    onChange={handleChange}
+                    placeholder="https://facebook.com/pagename"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    LinkedIn
+                  </label>
+                  <input
+                    type="url"
+                    name="linkedinUrl"
+                    value={formData.linkedinUrl}
+                    onChange={handleChange}
+                    placeholder="https://linkedin.com/company/name"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GitHub
+                  </label>
+                  <input
+                    type="url"
+                    name="githubUrl"
+                    value={formData.githubUrl}
+                    onChange={handleChange}
+                    placeholder="https://github.com/organization"
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
             </div>
           )}
           
