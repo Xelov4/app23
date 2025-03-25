@@ -16,11 +16,12 @@ export async function POST(request: NextRequest) {
       const sessionId = crypto.randomUUID();
       
       // Définition des cookies de session
-      cookies().set('admin_session', sessionId, {
+      const cookiesStore = await cookies();
+      cookiesStore.set('admin_session', sessionId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 60 * 60 * 24, // 24 heures
+        maxAge: 60 * 60 * 24 * 7, // 7 jours au lieu de 24 heures
         path: '/',
       });
       

@@ -4,7 +4,8 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   try {
     // Vérification de la présence du cookie de session
-    const adminSessionCookie = cookies().get('admin_session');
+    const cookiesStore = await cookies();
+    const adminSessionCookie = cookiesStore.get('admin_session');
     
     // Dans un système réel, nous vérifierions la validité du token de session
     // en le comparant à une base de données ou en décodant un JWT
