@@ -12,7 +12,7 @@ model User {
   email     String   @unique
   name      String?
   password  String
-  role      Role     @default(USER)
+  role      String   @default("USER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -24,18 +24,18 @@ model Tool {
   description       String
   logoUrl           String?
   websiteUrl        String
-  features          String              // Changed from String[] to String - will store JSON
-  pricingType       PricingType
+  features          String
+  pricingType       String
   pricingDetails    String?
   rating            Float?
   reviewCount       Int?
-  httpCode          Int?                // Code HTTP retourné lors de la vérification du site
-  twitterUrl        String?             // URL du compte Twitter/X
-  instagramUrl      String?             // URL du compte Instagram
-  facebookUrl       String?             // URL du compte Facebook
-  linkedinUrl       String?             // URL du compte LinkedIn
-  githubUrl         String?             // URL du compte GitHub
-  isActive          Boolean             @default(true)  // Indique si l'outil est actif (ON) ou inactif (OFF)
+  httpCode          Int?
+  twitterUrl        String?
+  instagramUrl      String?
+  facebookUrl       String?
+  linkedinUrl       String?
+  githubUrl         String?
+  isActive          Boolean             @default(true)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   CategoriesOnTools CategoriesOnTools[]
@@ -67,8 +67,8 @@ model Tag {
 model CategoriesOnTools {
   toolId     String
   categoryId String
-  Category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  Category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([toolId, categoryId])
   @@index([categoryId])
@@ -93,8 +93,8 @@ model Review {
 model TagsOnTools {
   toolId String
   tagId  String
-  Tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
   Tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  Tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([toolId, tagId])
   @@index([tagId])
@@ -114,22 +114,10 @@ model UseCase {
 model UseCasesOnTools {
   toolId    String
   useCaseId String
-  Tool      Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
   UseCase   UseCase @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+  Tool      Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, useCaseId])
   @@index([toolId])
   @@index([useCaseId])
-}
-
-enum Role {
-  USER
-  ADMIN
-}
-
-enum PricingType {
-  FREE
-  FREEMIUM
-  PAID
-  CONTACT
 }

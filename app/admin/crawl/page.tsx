@@ -13,6 +13,7 @@ interface Tool {
   httpChain?: string | null;
   isActive: boolean;
   status?: 'idle' | 'pending' | 'success' | 'error';
+  toggleStatus?: 'idle' | 'pending' | 'success' | 'error';
 }
 
 interface CrawlResult {
@@ -30,6 +31,7 @@ export default function WebsiteCrawlerPage() {
   const [isCrawling, setIsCrawling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [batchSize, setBatchSize] = useState(10);
   const [crawlProgress, setCrawlProgress] = useState(0);
@@ -66,7 +68,7 @@ export default function WebsiteCrawlerPage() {
       const response = await fetch('/api/tools');
       if (!response.ok) throw new Error('Erreur lors du chargement des outils');
       const data = await response.json();
-      setTools(data.map((tool: Tool) => ({ ...tool, status: 'idle' })));
+      setTools(data.map((tool: Tool) => ({ ...tool, status: 'idle', toggleStatus: 'idle' })));
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur de récupération des outils:', err);
@@ -96,9 +98,17 @@ export default function WebsiteCrawlerPage() {
         matchesStatus = !tool.httpCode && !tool.httpChain;
       }
       
-      return matchesSearch && matchesStatus;
+      // Filtre par statut actif/inactif
+      let matchesActive = true;
+      if (activeFilter === 'active') {
+        matchesActive = tool.isActive === true;
+      } else if (activeFilter === 'inactive') {
+        matchesActive = tool.isActive === false;
+      }
+      
+      return matchesSearch && matchesStatus && matchesActive;
     });
-  }, [tools, searchTerm, statusFilter]);
+  }, [tools, searchTerm, statusFilter, activeFilter]);
 
   // Gérer la sélection/désélection de tous les outils
   useEffect(() => {
@@ -108,6 +118,72 @@ export default function WebsiteCrawlerPage() {
       setSelectedTools([]);
     }
   }, [selectAll, filteredTools]);
+
+  // Basculer le statut actif/inactif d'un outil
+  const toggleToolStatus = async (toolSlug: string, currentStatus: boolean) => {
+    try {
+      // Marquer l'outil comme "en cours de traitement"
+      setTools(prev => 
+        prev.map(tool => 
+          tool.slug === toolSlug 
+            ? { ...tool, toggleStatus: 'pending' } 
+            : tool
+        )
+      );
+      
+      const response = await fetch(`/api/tools/${toolSlug}/toggle-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour du statut');
+      }
+      
+      // Mettre à jour l'état local
+      setTools(prevTools => 
+        prevTools.map(tool => 
+          tool.slug === toolSlug 
+            ? { ...tool, isActive: !tool.isActive, toggleStatus: 'success' } 
+            : tool
+        )
+      );
+      
+      // Remettre le statut du toggle à idle après 2 secondes
+      setTimeout(() => {
+        setTools(prevTools => 
+          prevTools.map(tool => 
+            tool.slug === toolSlug 
+              ? { ...tool, toggleStatus: 'idle' } 
+              : tool
+          )
+        );
+      }, 2000);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      
+      // Marquer l'outil comme en erreur
+      setTools(prevTools => 
+        prevTools.map(tool => 
+          tool.slug === toolSlug 
+            ? { ...tool, toggleStatus: 'error' } 
+            : tool
+        )
+      );
+      
+      // Remettre le statut du toggle à idle après 2 secondes
+      setTimeout(() => {
+        setTools(prevTools => 
+          prevTools.map(tool => 
+            tool.slug === toolSlug 
+              ? { ...tool, toggleStatus: 'idle' } 
+              : tool
+          )
+        );
+      }, 2000);
+    }
+  };
 
   // Traiter un lot d'outils
   const processBatch = async (batch: Tool[]) => {
@@ -265,6 +341,13 @@ export default function WebsiteCrawlerPage() {
     }
   };
 
+  // Obtenir la classe CSS pour le bouton toggle
+  const getToggleStatusClass = (isActive: boolean, toggleStatus: string | undefined) => {
+    if (toggleStatus === 'pending') return 'animate-pulse opacity-50 cursor-wait';
+    if (toggleStatus === 'error') return 'opacity-50';
+    return '';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
@@ -299,7 +382,7 @@ export default function WebsiteCrawlerPage() {
           
           {/* Options de configuration */}
           <div className="bg-white p-4 rounded shadow mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Taille du lot
@@ -319,7 +402,7 @@ export default function WebsiteCrawlerPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Filtrer par statut
+                  Filtrer par statut HTTP
                 </label>
                 <select
                   value={statusFilter}
@@ -333,6 +416,22 @@ export default function WebsiteCrawlerPage() {
                   <option value="error">Erreurs (400+)</option>
                   <option value="dns">Erreurs DNS</option>
                   <option value="notcrawled">Non vérifiés</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Filtrer par état
+                </label>
+                <select
+                  value={activeFilter}
+                  onChange={(e) => setActiveFilter(e.target.value)}
+                  className="w-full p-2 border rounded"
+                  disabled={isCrawling}
+                >
+                  <option value="all">Tous les états</option>
+                  <option value="active">Actifs</option>
+                  <option value="inactive">Inactifs</option>
                 </select>
               </div>
               
@@ -407,7 +506,8 @@ export default function WebsiteCrawlerPage() {
                     <th className="py-2 px-4 text-left">URL du site</th>
                     <th className="py-2 px-4 text-left">Statut HTTP</th>
                     <th className="py-2 px-4 text-left">Chaîne</th>
-                    <th className="py-2 px-4 text-left">État</th>
+                    <th className="py-2 px-4 text-center">État</th>
+                    <th className="py-2 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -442,12 +542,30 @@ export default function WebsiteCrawlerPage() {
                           <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full">En cours...</span> :
                           (tool.httpChain || '-')}
                       </td>
-                      <td className="py-2 px-4">
+                      <td className="py-2 px-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           tool.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
                           {tool.isActive ? 'Actif' : 'Inactif'}
                         </span>
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <button
+                          onClick={() => toggleToolStatus(tool.slug, tool.isActive)}
+                          disabled={tool.toggleStatus === 'pending'}
+                          className={`px-3 py-1 rounded text-xs font-medium ${
+                            tool.isActive 
+                              ? 'bg-red-500 text-white hover:bg-red-600' 
+                              : 'bg-green-500 text-white hover:bg-green-600'
+                          } ${getToggleStatusClass(tool.isActive, tool.toggleStatus)}`}
+                        >
+                          {tool.toggleStatus === 'pending'
+                            ? 'En cours...'
+                            : tool.isActive
+                            ? 'Désactiver'
+                            : 'Activer'
+                          }
+                        </button>
                       </td>
                     </tr>
                   ))}
