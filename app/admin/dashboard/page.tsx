@@ -282,96 +282,79 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-10 w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0`}
-      >
-        <div className="p-4 font-bold text-xl border-b border-gray-700">
-          Administration
+      <div className={`bg-white shadow-md h-screen p-4 fixed top-0 left-0 bottom-0 transition-all ${sidebarOpen ? 'w-64' : 'w-16'}`}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className={`text-xl font-bold ${!sidebarOpen && 'hidden'}`}>Administration</h2>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            {sidebarOpen ? '◀' : '▶'}
+          </button>
         </div>
-        
-        <div className="p-4">
-          {/* Menu Content */}
-          <div className="mb-6">
-            <h2 className="text-lg font-medium mb-3 text-gray-300">Contenu</h2>
-            <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => setActiveTab('outils')}
-                  className={`flex items-center w-full text-left py-2 px-3 rounded ${
-                    activeTab === 'outils' ? 'bg-blue-600' : 'hover:bg-gray-700'
-                  }`}
-                >
-                  <span className="mr-2">🛠️</span>
-                  <span>Outils</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveTab('categories')}
-                  className={`flex items-center w-full text-left py-2 px-3 rounded ${
-                    activeTab === 'categories' ? 'bg-blue-600' : 'hover:bg-gray-700'
-                  }`}
-                >
-                  <span className="mr-2">📂</span>
-                  <span>Catégories</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveTab('tags')}
-                  className={`flex items-center w-full text-left py-2 px-3 rounded ${
-                    activeTab === 'tags' ? 'bg-blue-600' : 'hover:bg-gray-700'
-                  }`}
-                >
-                  <span className="mr-2">🏷️</span>
-                  <span>Tags</span>
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          {/* Menu Actions */}
-          <div className="mb-6">
-            <h2 className="text-lg font-medium mb-3 text-gray-300">Actions</h2>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/admin/bulk"
-                  className="flex items-center py-2 px-3 rounded hover:bg-gray-700"
-                >
-                  <span className="mr-2">📷</span>
-                  <span>Détection HTTP</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="text-sm text-gray-300 hover:text-white">
-              Voir le site
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-400 hover:text-red-300"
-            >
-              Déconnexion
-            </button>
-          </div>
-        </div>
-      </aside>
+        <nav>
+          <Link
+            href="/admin/dashboard"
+            className={`block py-2 px-4 mb-1 rounded bg-blue-100 text-blue-800 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Tableau de bord' : '📊'}
+          </Link>
+          
+          <Link
+            href="/admin/crawl"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Vérificateur d\'URLs' : '🔗'}
+          </Link>
+          
+          <Link
+            href="/admin/add/tool"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Ajouter un outil' : '➕'}
+          </Link>
+          <Link
+            href="/admin/add/category"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Ajouter une catégorie' : '🗂️'}
+          </Link>
+          <Link
+            href="/admin/add/tag"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Ajouter un tag' : '🏷️'}
+          </Link>
+          <Link
+            href="/admin/bulk"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Import en masse' : '📥'}
+          </Link>
+          
+          <button
+            onClick={handleLogout}
+            className={`block w-full text-left py-2 px-4 mt-4 rounded hover:bg-red-100 hover:text-red-800 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Déconnexion' : '🚪'}
+          </button>
+        </nav>
+      </div>
       
-      {/* Toggle sidebar button for mobile */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed top-4 z-50 p-2 bg-gray-800 text-white rounded-r-md md:hidden ${sidebarOpen ? 'left-64' : 'left-0'}`}
-      >
-        {sidebarOpen ? '←' : '→'}
-      </button>
-
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <header className="bg-white shadow">
