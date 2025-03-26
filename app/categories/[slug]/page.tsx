@@ -1,13 +1,22 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ToolCard } from "@/components/ui/tool-card";
+import { getCategoryEmoji, getCategoryColor } from "@/lib/design-system/primitives";
 
 export const revalidate = 3600; // Revalider les données au maximum toutes les heures
 
 async function getCategoryBySlug(slug: string) {
   try {
     const category = await db.category.findUnique({
-      where: { slug }
+      where: { slug },
+      include: {
+        _count: {
+          select: { CategoriesOnTools: true }
+        }
+      }
     });
     
     return category;
@@ -21,6 +30,7 @@ async function getToolsByCategory(categoryId: string) {
   try {
     const tools = await db.tool.findMany({
       where: {
+        isActive: true,
         CategoriesOnTools: {
           some: {
             categoryId
@@ -41,12 +51,71 @@ async function getToolsByCategory(categoryId: string) {
       slug: tool.slug,
       name: tool.name,
       description: tool.description,
-      imageUrl: tool.logoUrl,
-      pricing: tool.pricingType,
-      category: tool.CategoriesOnTools[0]?.Category.name
+      logoUrl: tool.logoUrl,
+      websiteUrl: tool.websiteUrl,
+      pricingType: tool.pricingType,
+      category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
+      categoryId: tool.CategoriesOnTools[0]?.categoryId,
+      features: tool.features || []
     }));
   } catch (error) {
     console.error("Erreur lors de la récupération des outils par catégorie:", error);
+    return [];
+  }
+}
+
+async function getRelatedCategories(categoryId: string) {
+  try {
+    // Trouver des outils dans cette catégorie
+    const tools = await db.tool.findMany({
+      where: {
+        CategoriesOnTools: {
+          some: {
+            categoryId
+          }
+        }
+      },
+      select: {
+        id: true,
+        CategoriesOnTools: {
+          include: {
+            Category: true
+          }
+        }
+      },
+      take: 10
+    });
+    
+    // Extraire les IDs de toutes les catégories de ces outils, sauf celle actuelle
+    const categoryIds = new Set<string>();
+    tools.forEach(tool => {
+      tool.CategoriesOnTools.forEach(ct => {
+        if (ct.categoryId !== categoryId) {
+          categoryIds.add(ct.categoryId);
+        }
+      });
+    });
+    
+    // Récupérer les informations complètes des catégories
+    if (categoryIds.size > 0) {
+      return await db.category.findMany({
+        where: {
+          id: {
+            in: Array.from(categoryIds)
+          }
+        },
+        include: {
+          _count: {
+            select: { CategoriesOnTools: true }
+          }
+        },
+        take: 3
+      });
+    }
+    
+    return [];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des catégories associées:", error);
     return [];
   }
 }
@@ -60,78 +129,124 @@ export default async function CategoryPage(props: { params: Promise<{ slug: stri
   }
 
   const tools = await getToolsByCategory(category.id);
+  const relatedCategories = await getRelatedCategories(category.id);
+  const gradientClass = getCategoryColor(category.slug);
+  const emoji = getCategoryEmoji(category.slug);
+  const toolCount = category._count?.CategoriesOnTools || 0;
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mb-6">
-        <Link href="/" className="text-blue-600 hover:underline">
-          ← Retour à l'accueil
-        </Link>
-      </div>
-      
-      <header className="mb-12">
-        <h1 className="text-4xl font-bold mb-4">{category.name}</h1>
-        <p className="text-lg text-gray-600 max-w-3xl">{category.description}</p>
-      </header>
-      
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Outils dans cette catégorie</h2>
-          <div className="flex gap-2">
-            <select className="border rounded-md px-3 py-1">
-              <option>Trier par</option>
-              <option>Popularité</option>
-              <option>Alphabétique</option>
-              <option>Prix (croissant)</option>
-              <option>Prix (décroissant)</option>
-            </select>
-            <select className="border rounded-md px-3 py-1">
-              <option>Tous les prix</option>
-              <option>Gratuit</option>
-              <option>Freemium</option>
-              <option>Payant</option>
-            </select>
+    <>
+      {/* En-tête de la catégorie */}
+      <section className={`bg-gradient-to-b ${gradientClass} py-16`}>
+        <div className="container px-4 mx-auto">
+          <div className="flex items-center justify-between mb-2">
+            <Link href="/categories">
+              <Button variant="secondary" size="sm" className="opacity-90 hover:opacity-100">
+                ← Toutes les catégories
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
+            <div className="bg-white/20 rounded-full w-20 h-20 flex items-center justify-center text-white shrink-0">
+              <span className="text-4xl">{emoji}</span>
+            </div>
+            
+            <div className="text-white">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">{category.name}</h1>
+              <p className="text-white/90 max-w-2xl">
+                {category.description}
+              </p>
+              <div className="mt-2 text-white/80">
+                {toolCount} outil{toolCount > 1 ? 's' : ''} disponible{toolCount > 1 ? 's' : ''}
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      </section>
+      
+      {/* Liste des outils */}
+      <section className="py-12 bg-background">
+        <div className="container px-4 mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+            <h2 className="text-2xl font-bold">Outils dans cette catégorie</h2>
+            
+            {/* Options de tri - à implémenter ultérieurement */}
+            <div className="mt-4 md:mt-0">
+              <Button variant="outline" size="sm" disabled className="opacity-50">
+                Options de tri à venir
+              </Button>
+            </div>
+          </div>
+          
           {tools.length > 0 ? (
-            tools.map((tool) => (
-              <div key={tool.id} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="h-48 bg-gray-200 relative">
-                  {tool.imageUrl && (
-                    <img 
-                      src={tool.imageUrl} 
-                      alt={tool.name}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  <div className="absolute top-2 right-2 bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                    {tool.pricing === "FREE" ? "Gratuit" : 
-                     tool.pricing === "PAID" ? "Payant" : 
-                     tool.pricing === "FREEMIUM" ? "Freemium" : 
-                     "Abonnement"}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold mb-2">{tool.name}</h3>
-                  <p className="text-gray-600 line-clamp-2">{tool.description}</p>
-                  <Link 
-                    href={`/tools/${tool.slug}`}
-                    className="mt-4 inline-block text-blue-600 hover:underline"
-                  >
-                    Voir plus →
-                  </Link>
-                </div>
-              </div>
-            ))
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {tools.map((tool) => (
+                <ToolCard
+                  key={tool.id}
+                  tool={tool}
+                />
+              ))}
+            </div>
           ) : (
-            <div className="col-span-3 text-center py-12">
-              <p className="text-gray-500">Aucun outil trouvé dans cette catégorie.</p>
+            <div className="bg-muted/50 rounded-lg p-8 text-center">
+              <h3 className="text-lg font-semibold mb-2">Aucun outil dans cette catégorie</h3>
+              <p className="text-muted-foreground mb-4">
+                Nous n'avons pas encore d'outils répertoriés dans cette catégorie.
+              </p>
+              <Button asChild>
+                <Link href="/tools">Explorer tous les outils</Link>
+              </Button>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </section>
+      
+      {/* Catégories associées */}
+      {relatedCategories.length > 0 && (
+        <section className="py-12 bg-muted/30">
+          <div className="container px-4 mx-auto">
+            <h2 className="text-2xl font-bold mb-8">Catégories associées</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {relatedCategories.map((relatedCategory) => (
+                <Link 
+                  key={relatedCategory.id}
+                  href={`/categories/${relatedCategory.slug}`}
+                  className={`p-4 rounded-lg bg-gradient-to-br ${getCategoryColor(relatedCategory.slug)} text-white hover:shadow-lg transition-shadow`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-full w-10 h-10 flex items-center justify-center shrink-0">
+                      <span className="text-xl">{getCategoryEmoji(relatedCategory.slug)}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{relatedCategory.name}</h3>
+                      <p className="text-white/80 text-sm">
+                        {relatedCategory._count?.CategoriesOnTools || 0} outil{relatedCategory._count?.CategoriesOnTools !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+      
+      {/* CTA */}
+      <section className="py-16 bg-background">
+        <div className="container px-4 mx-auto">
+          <div className="bg-muted/50 rounded-lg p-8 text-center">
+            <h3 className="text-xl font-semibold mb-2">Vous connaissez un outil qui devrait être dans cette catégorie?</h3>
+            <p className="text-muted-foreground max-w-lg mx-auto mb-6">
+              Si vous connaissez un outil d'IA qui devrait être répertorié dans cette catégorie, n'hésitez pas à nous le faire savoir.
+            </p>
+            <Button asChild>
+              <Link href="/contact">Suggérer un outil</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+    </>
   );
 } 
