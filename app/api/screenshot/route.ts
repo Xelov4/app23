@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
   let resizedFilePath = '';
   let httpStatusCode = null;
   let httpRedirectChain = '';
-  let slug = '';
   
   try {
     console.log('API de capture d\'écran appelée');
@@ -125,8 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { url, slug: requestSlug } = requestData;
-    slug = requestSlug;
+    const { url } = requestData;
     
     if (!url) {
       return new NextResponse(
@@ -143,23 +141,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!slug) {
-      return new NextResponse(
-        JSON.stringify({ 
-          error: 'Slug requis',
-          success: false
-        }), 
-        { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    }
-
     console.log('URL reçue:', url);
-    console.log('Slug reçu:', slug);
 
     // Vérifier si c'est un chemin relatif
     if (url.startsWith('/')) {
@@ -207,8 +189,11 @@ export async function POST(request: NextRequest) {
       fs.mkdirSync(screenshotsDir, { recursive: true });
     }
 
-    // Utiliser le slug comme nom de fichier
-    const fileName = `${slug}.png`;
+    // Générer un nom de fichier unique basé sur l'URL
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace(/[^a-z0-9]/gi, '_');
+    const timestamp = Date.now();
+    const fileName = `${hostname}_${timestamp}.png`;
     originalFilePath = path.join(screenshotsDir, `original_${fileName}`);
     resizedFilePath = path.join(screenshotsDir, fileName);
 
@@ -218,17 +203,6 @@ export async function POST(request: NextRequest) {
     if (!isDnsResolvable) {
       httpStatusCode = 0;
       httpRedirectChain = 'DNS';
-      
-      // Mise à jour dans la base de données
-      if (slug) {
-        await db.tool.update({
-          where: { slug },
-          data: { 
-            httpCode: 0,
-            httpChain: 'DNS'
-          }
-        });
-      }
       
       // Retourner une image d'erreur
       const errorImagePath = path.join(process.cwd(), 'public', 'images', 'error.png');
@@ -275,17 +249,6 @@ export async function POST(request: NextRequest) {
       httpStatusCode = finalCode;
       httpRedirectChain = chain;
       
-      // Mise à jour dans la base de données
-      if (slug) {
-        await db.tool.update({
-          where: { slug },
-          data: { 
-            httpCode: httpStatusCode,
-            httpChain: httpRedirectChain
-          }
-        });
-      }
-      
       // Si erreur HTTP, on peut s'arrêter là et renvoyer une image d'erreur
       if (httpStatusCode >= 400 || httpStatusCode === 0) {
         const errorImagePath = path.join(process.cwd(), 'public', 'images', 'error.png');
@@ -314,16 +277,6 @@ export async function POST(request: NextRequest) {
       console.error(`Erreur lors de la vérification de l'URL ${url}:`, error);
       httpStatusCode = 0;
       httpRedirectChain = 'Erreur';
-      
-      if (slug) {
-        await db.tool.update({
-          where: { slug },
-          data: { 
-            httpCode: 0,
-            httpChain: 'Erreur'
-          }
-        });
-      }
     }
 
     // Supprimer les fichiers existants s'ils existent
@@ -421,17 +374,6 @@ export async function POST(request: NextRequest) {
         httpRedirectChain = responseStatus.toString();
       }
       
-      // Mettre à jour dans la base de données avec le vrai statut de la page
-      if (slug) {
-        await db.tool.update({
-          where: { slug },
-          data: { 
-            httpCode: httpStatusCode,
-            httpChain: httpRedirectChain
-          }
-        });
-      }
-      
       // Capture uniquement les sites qui retournent 200 (succès)
       if (httpStatusCode !== 200) {
         await browser.close();
@@ -460,8 +402,9 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Attendre un peu pour que la page se stabilise
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Attendre 5 secondes pour que la page se charge complètement
+      console.log('Attente de 5 secondes pour le chargement complet de la page...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
       // Capture d'écran
       console.log('Capture d\'écran en cours...');
@@ -530,21 +473,6 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Mise à jour de la base de données en cas d'erreur
-      if (slug) {
-        try {
-          await db.tool.update({
-            where: { slug },
-            data: { 
-              httpCode: httpStatusCode || 0,
-              httpChain: httpRedirectChain || 'Erreur'
-            }
-          });
-        } catch (dbError) {
-          console.error('Erreur lors de la mise à jour du code HTTP dans la base de données:', dbError);
-        }
-      }
-      
       return new NextResponse(
         JSON.stringify({
           error: browserError instanceof Error ? browserError.message : 'Erreur lors du lancement du navigateur',
@@ -578,21 +506,6 @@ export async function POST(request: NextRequest) {
         await browser.close();
       } catch (closeError) {
         console.error('Erreur lors de la fermeture du navigateur:', closeError);
-      }
-    }
-    
-    // Mise à jour de la base de données en cas d'erreur
-    if (slug) {
-      try {
-        await db.tool.update({
-          where: { slug },
-          data: { 
-            httpCode: httpStatusCode || 0,
-            httpChain: httpRedirectChain || 'Erreur'
-          }
-        });
-      } catch (dbError) {
-        console.error('Erreur lors de la mise à jour du code HTTP dans la base de données:', dbError);
       }
     }
     

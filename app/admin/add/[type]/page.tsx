@@ -169,7 +169,9 @@ export default function AddPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: formData.websiteUrl }),
+        body: JSON.stringify({ 
+          url: formData.websiteUrl
+        }),
       });
       
       const responseData = await response.json();

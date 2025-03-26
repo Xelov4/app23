@@ -277,7 +277,9 @@ Réponds uniquement avec le code HTML de la description améliorée, sans balise
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url: formData.logoUrl }),
+            body: JSON.stringify({ 
+              url: formData.logoUrl
+            }),
           });
           
           const responseData = await response.json();
@@ -357,7 +359,9 @@ Réponds uniquement avec le code HTML de la description améliorée, sans balise
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: formData.websiteUrl }),
+        body: JSON.stringify({ 
+          url: formData.websiteUrl
+        }),
       });
       
       const responseData = await response.json();
@@ -679,7 +683,7 @@ Réponds uniquement avec le code HTML de la description améliorée, sans balise
                 )}
                 <button
                   type="button"
-                  onClick={() => setIsCapturingScreenshot(true)}
+                  onClick={captureScreenshot}
                   className="ml-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                   disabled={isCapturingScreenshot}
                 >
