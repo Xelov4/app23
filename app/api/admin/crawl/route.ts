@@ -1,68 +1,120 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
+import dns from 'dns';
+import { promisify } from 'util';
 
-// Fonction pour crawler une URL et suivre les redirections
-async function crawlUrl(url: string): Promise<{ httpCode: number, finalUrl: string }> {
+const dnsLookup = promisify(dns.lookup);
+
+// Fonction pour vérifier rapidement si un domaine est résolvable
+async function isDomainResolvable(url: string): Promise<boolean> {
   try {
-    // Vérifier si l'URL a un protocole, sinon ajouter https://
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-
+    const { hostname } = new URL(url);
+    
+    // Timeout de 2 secondes pour la résolution DNS
     const controller = new AbortController();
-    // Timeout après 10 secondes
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+    const signal = controller.signal;
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    
     try {
-      const response = await fetch(url, {
-        method: 'HEAD', // Utiliser HEAD pour ne pas télécharger le contenu
-        redirect: 'follow', // Suivre les redirections
-        signal: controller.signal
-      });
-
+      await dnsLookup(hostname);
       clearTimeout(timeoutId);
-      
-      // Obtenir l'URL finale après les redirections
-      const finalUrl = response.url;
-      
-      return {
-        httpCode: response.status,
-        finalUrl
-      };
-    } catch (error) {
-      // Si HEAD échoue, essayer avec GET
-      clearTimeout(timeoutId);
-      const secondTimeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          redirect: 'follow',
-          signal: controller.signal
-        });
-        
-        clearTimeout(secondTimeoutId);
-        
-        return {
-          httpCode: response.status,
-          finalUrl: response.url
-        };
-      } catch (error) {
-        clearTimeout(secondTimeoutId);
-        console.error(`Erreur lors du crawl de ${url}:`, error);
-        
-        return {
-          httpCode: 0, // 0 indique une erreur de connexion
-          finalUrl: url
-        };
+      return true;
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'name' in e && e.name === 'AbortError') {
+        console.log(`Timeout DNS pour ${hostname}`);
       }
+      return false;
     }
   } catch (error) {
-    console.error(`Erreur lors du crawl de ${url}:`, error);
+    console.error(`Erreur lors de la vérification DNS pour ${url}:`, error);
+    return false;
+  }
+}
+
+// Fonction pour suivre les redirections HTTP
+async function followRedirects(url: string, maxRedirects = 5): Promise<{ chain: string, finalUrl: string, finalCode: number }> {
+  let currentUrl = url;
+  let redirectChain: string[] = [];
+  let finalCode = 0;
+  let redirectCount = 0;
+  let finalUrl = url;
+  
+  try {
+    // Timeout de 5 secondes pour les requêtes
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
+    
+    while (redirectCount < maxRedirects) {
+      const response = await fetch(currentUrl, { 
+        method: 'HEAD', 
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        signal: timeoutController.signal
+      });
+      
+      const statusCode = response.status;
+      redirectChain.push(statusCode.toString());
+      
+      if (statusCode >= 300 && statusCode < 400) {
+        const location = response.headers.get('location');
+        if (!location) break;
+        
+        // Construire l'URL complète si c'est un chemin relatif
+        const nextUrl = new URL(location, currentUrl).toString();
+        currentUrl = nextUrl;
+        finalUrl = nextUrl;
+        redirectCount++;
+      } else {
+        finalCode = statusCode;
+        break;
+      }
+    }
+    
+    clearTimeout(timeoutId);
+    
+    // Si GET donne un meilleur résultat que HEAD, on utilise celle-là
+    if (finalCode === 405 || finalCode === 404 || finalCode === 0) {
+      try {
+        const getController = new AbortController();
+        const getTimeoutId = setTimeout(() => getController.abort(), 5000);
+        
+        const getResponse = await fetch(finalUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          signal: getController.signal
+        });
+        
+        clearTimeout(getTimeoutId);
+        finalCode = getResponse.status;
+        redirectChain.push(`GET: ${finalCode}`);
+      } catch (getError) {
+        console.error(`Erreur lors de la requête GET pour ${finalUrl}:`, getError);
+      }
+    }
+    
     return {
-      httpCode: 0,
-      finalUrl: url
+      chain: redirectChain.join(' > '),
+      finalUrl,
+      finalCode
+    };
+  } catch (error: unknown) {
+    console.error(`Erreur lors du suivi des redirections pour ${url}:`, error);
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+      return {
+        chain: 'Timeout',
+        finalUrl,
+        finalCode: 0
+      };
+    }
+    return {
+      chain: redirectChain.length > 0 ? redirectChain.join(' > ') : 'Erreur',
+      finalUrl,
+      finalCode: 0
     };
   }
 }
@@ -110,16 +162,46 @@ export async function POST(request: NextRequest) {
     for (const tool of tools) {
       try {
         console.log(`Crawling ${tool.name} (${tool.websiteUrl})...`);
+        let url = tool.websiteUrl;
         
-        const { httpCode, finalUrl } = await crawlUrl(tool.websiteUrl);
+        // Vérifier si l'URL a un protocole, sinon ajouter https://
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        
+        // Vérifier si le domaine est résolvable
+        const isDnsResolvable = await isDomainResolvable(url);
+        
+        if (!isDnsResolvable) {
+          // Mettre à jour l'outil dans la base de données
+          await db.tool.update({
+            where: { id: tool.id },
+            data: { 
+              httpCode: 0
+            }
+          });
+          
+          results.push({
+            id: tool.id,
+            name: tool.name,
+            originalUrl: tool.websiteUrl,
+            finalUrl: tool.websiteUrl,
+            httpCode: 0,
+            httpChain: 'DNS'
+          });
+          
+          continue; // Passer à l'outil suivant
+        }
+        
+        // Suivre les redirections et obtenir le code HTTP final
+        const { chain, finalUrl, finalCode } = await followRedirects(url);
         
         // Mettre à jour l'outil dans la base de données
         await db.tool.update({
           where: { id: tool.id },
           data: { 
-            httpCode,
-            // Si l'URL finale est différente, mettre à jour l'URL du site
-            ...(finalUrl !== tool.websiteUrl && {
+            httpCode: finalCode,
+            ...(finalUrl !== url && {
               websiteUrl: finalUrl
             })
           }
@@ -130,7 +212,8 @@ export async function POST(request: NextRequest) {
           name: tool.name,
           originalUrl: tool.websiteUrl,
           finalUrl,
-          httpCode
+          httpCode: finalCode,
+          httpChain: chain
         });
         
       } catch (error) {

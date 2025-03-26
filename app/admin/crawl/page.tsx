@@ -10,6 +10,7 @@ interface Tool {
   slug: string;
   websiteUrl: string;
   httpCode?: number | null;
+  httpChain?: string | null;
   isActive: boolean;
   selected?: boolean;
 }
@@ -74,13 +75,15 @@ export default function WebsiteCrawlerPage() {
       // Filtre par statut HTTP
       let matchesStatus = true;
       if (statusFilter === 'error') {
-        matchesStatus = tool.httpCode === null || tool.httpCode >= 400 || tool.httpCode < 200;
+        matchesStatus = !tool.httpCode || tool.httpCode >= 400 || tool.httpCode < 200;
       } else if (statusFilter === 'success') {
-        matchesStatus = tool.httpCode !== null && tool.httpCode >= 200 && tool.httpCode < 400;
+        matchesStatus = !!tool.httpCode && tool.httpCode >= 200 && tool.httpCode < 300;
       } else if (statusFilter === 'redirect') {
-        matchesStatus = tool.httpCode !== null && (tool.httpCode >= 300 && tool.httpCode < 400);
+        matchesStatus = !!tool.httpCode && tool.httpCode >= 300 && tool.httpCode < 400;
+      } else if (statusFilter === 'dns') {
+        matchesStatus = tool.httpChain === 'DNS';
       } else if (statusFilter === 'notcrawled') {
-        matchesStatus = tool.httpCode === null;
+        matchesStatus = !tool.httpCode && !tool.httpChain;
       }
       
       return matchesSearch && matchesStatus;
@@ -137,12 +140,14 @@ export default function WebsiteCrawlerPage() {
         setTools(prevTools => {
           const updatedTools = [...prevTools];
           
-          result.results.forEach((crawlResult: { id: string; httpCode: number; }) => {
+          result.results.forEach((crawlResult: { id: string; httpCode: number; httpChain: string; finalUrl: string; }) => {
             const index = updatedTools.findIndex(tool => tool.id === crawlResult.id);
             if (index !== -1) {
               updatedTools[index] = {
                 ...updatedTools[index],
-                httpCode: crawlResult.httpCode
+                httpCode: crawlResult.httpCode,
+                httpChain: crawlResult.httpChain,
+                websiteUrl: crawlResult.finalUrl
               };
             }
           });
@@ -180,7 +185,8 @@ export default function WebsiteCrawlerPage() {
   };
 
   // Obtenir la classe CSS pour le code HTTP
-  const getHttpStatusClass = (httpCode: number | null | undefined) => {
+  const getHttpStatusClass = (httpCode: number | null | undefined, httpChain: string | null | undefined) => {
+    if (httpChain === 'DNS') return 'bg-purple-100 text-purple-800';
     if (httpCode === null || httpCode === undefined) return 'bg-gray-200 text-gray-800';
     if (httpCode >= 200 && httpCode < 300) return 'bg-green-100 text-green-800';
     if (httpCode >= 300 && httpCode < 400) return 'bg-yellow-100 text-yellow-800';
@@ -189,8 +195,10 @@ export default function WebsiteCrawlerPage() {
   };
 
   // Obtenir le texte pour le code HTTP
-  const getHttpStatusText = (httpCode: number | null | undefined) => {
+  const getHttpStatusText = (httpCode: number | null | undefined, httpChain: string | null | undefined) => {
+    if (httpChain === 'DNS') return 'Erreur DNS';
     if (httpCode === null || httpCode === undefined) return 'Non vérifié';
+    if (httpCode === 0) return `Erreur de connexion`;
     if (httpCode >= 200 && httpCode < 300) return `${httpCode} - OK`;
     if (httpCode >= 300 && httpCode < 400) return `${httpCode} - Redirection`;
     if (httpCode >= 400 && httpCode < 500) return `${httpCode} - Erreur client`;
@@ -261,9 +269,10 @@ export default function WebsiteCrawlerPage() {
                   disabled={isCrawling}
                 >
                   <option value="all">Tous les statuts</option>
-                  <option value="success">Succès (200-399)</option>
+                  <option value="success">Succès (200-299)</option>
                   <option value="redirect">Redirections (300-399)</option>
                   <option value="error">Erreurs (400+)</option>
+                  <option value="dns">Erreurs DNS</option>
                   <option value="notcrawled">Non vérifiés</option>
                 </select>
               </div>
@@ -338,6 +347,7 @@ export default function WebsiteCrawlerPage() {
                     <th className="py-2 px-4 text-left">Nom</th>
                     <th className="py-2 px-4 text-left">URL du site</th>
                     <th className="py-2 px-4 text-left">Statut HTTP</th>
+                    <th className="py-2 px-4 text-left">Chaîne</th>
                     <th className="py-2 px-4 text-left">État</th>
                   </tr>
                 </thead>
@@ -364,9 +374,12 @@ export default function WebsiteCrawlerPage() {
                         </a>
                       </td>
                       <td className="py-2 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHttpStatusClass(tool.httpCode)}`}>
-                          {getHttpStatusText(tool.httpCode)}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHttpStatusClass(tool.httpCode, tool.httpChain)}`}>
+                          {getHttpStatusText(tool.httpCode, tool.httpChain)}
                         </span>
+                      </td>
+                      <td className="py-2 px-4 text-xs">
+                        {tool.httpChain || '-'}
                       </td>
                       <td className="py-2 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
