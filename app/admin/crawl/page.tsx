@@ -12,7 +12,15 @@ interface Tool {
   httpCode?: number | null;
   httpChain?: string | null;
   isActive: boolean;
-  selected?: boolean;
+  status?: 'idle' | 'pending' | 'success' | 'error';
+}
+
+interface CrawlResult {
+  id: string;
+  httpCode: number;
+  httpChain: string;
+  finalUrl: string;
+  error?: string;
 }
 
 export default function WebsiteCrawlerPage() {
@@ -27,6 +35,8 @@ export default function WebsiteCrawlerPage() {
   const [crawlProgress, setCrawlProgress] = useState(0);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalToProcess, setTotalToProcess] = useState(0);
 
   // Vérifier si l'utilisateur est connecté
   useEffect(() => {
@@ -56,7 +66,7 @@ export default function WebsiteCrawlerPage() {
       const response = await fetch('/api/tools');
       if (!response.ok) throw new Error('Erreur lors du chargement des outils');
       const data = await response.json();
-      setTools(data);
+      setTools(data.map((tool: Tool) => ({ ...tool, status: 'idle' })));
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur de récupération des outils:', err);
@@ -99,6 +109,76 @@ export default function WebsiteCrawlerPage() {
     }
   }, [selectAll, filteredTools]);
 
+  // Traiter un lot d'outils
+  const processBatch = async (batch: Tool[]) => {
+    try {
+      // Marquer les outils comme "en cours de traitement"
+      setTools(prev => 
+        prev.map(tool => 
+          batch.some(b => b.id === tool.id) 
+            ? { ...tool, status: 'pending' } 
+            : tool
+        )
+      );
+      
+      // Appeler l'API pour crawler ce lot
+      const response = await fetch('/api/admin/crawl', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toolIds: batch.map(tool => tool.id)
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du crawl: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Mettre à jour les outils avec les nouveaux codes HTTP
+      setTools(prevTools => {
+        const updatedTools = [...prevTools];
+        
+        result.results.forEach((crawlResult: CrawlResult) => {
+          const index = updatedTools.findIndex(tool => tool.id === crawlResult.id);
+          if (index !== -1) {
+            updatedTools[index] = {
+              ...updatedTools[index],
+              httpCode: crawlResult.httpCode,
+              httpChain: crawlResult.httpChain,
+              websiteUrl: crawlResult.finalUrl || updatedTools[index].websiteUrl,
+              status: crawlResult.error ? 'error' : 'success'
+            };
+          }
+        });
+        
+        return updatedTools;
+      });
+      
+      // Incrémenter le compteur de traitement
+      setProcessedCount(prev => prev + batch.length);
+      
+      return true;
+    } catch (err) {
+      console.error('Erreur lors du traitement du lot:', err);
+      
+      // Marquer les outils du lot comme en erreur
+      setTools(prev => 
+        prev.map(tool => 
+          batch.some(b => b.id === tool.id) 
+            ? { ...tool, status: 'error' } 
+            : tool
+        )
+      );
+      
+      setError((err as Error).message);
+      return false;
+    }
+  };
+
   // Lancer le crawl
   const startCrawl = async () => {
     if (selectedTools.length === 0) {
@@ -108,58 +188,29 @@ export default function WebsiteCrawlerPage() {
 
     setIsCrawling(true);
     setCrawlProgress(0);
+    setProcessedCount(0);
     setError(null);
 
     try {
       // Préparer les outils à crawler
       const toolsToCrawl = tools.filter(tool => selectedTools.includes(tool.id));
-      const totalTools = toolsToCrawl.length;
+      setTotalToProcess(toolsToCrawl.length);
       
       // Diviser en lots selon la taille configurée
-      for (let i = 0; i < totalTools; i += batchSize) {
+      for (let i = 0; i < toolsToCrawl.length; i += batchSize) {
         const batch = toolsToCrawl.slice(i, i + batchSize);
         
-        // Appeler l'API pour crawler ce lot
-        const response = await fetch('/api/admin/crawl', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            toolIds: batch.map(tool => tool.id)
-          }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Erreur lors du crawl');
-        }
-        
-        const result = await response.json();
-        
-        // Mettre à jour les outils avec les nouveaux codes HTTP
-        setTools(prevTools => {
-          const updatedTools = [...prevTools];
-          
-          result.results.forEach((crawlResult: { id: string; httpCode: number; httpChain: string; finalUrl: string; }) => {
-            const index = updatedTools.findIndex(tool => tool.id === crawlResult.id);
-            if (index !== -1) {
-              updatedTools[index] = {
-                ...updatedTools[index],
-                httpCode: crawlResult.httpCode,
-                httpChain: crawlResult.httpChain,
-                websiteUrl: crawlResult.finalUrl
-              };
-            }
-          });
-          
-          return updatedTools;
-        });
+        // Traiter ce lot
+        await processBatch(batch);
         
         // Mettre à jour la progression
-        setCrawlProgress(Math.min(100, Math.round(((i + batch.length) / totalTools) * 100)));
+        const progress = Math.min(100, Math.round(((i + batch.length) / toolsToCrawl.length) * 100));
+        setCrawlProgress(progress);
         
         // Attendre un peu pour éviter de surcharger le serveur
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (i + batchSize < toolsToCrawl.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
       
       setCrawlProgress(100);
@@ -168,8 +219,6 @@ export default function WebsiteCrawlerPage() {
       console.error('Erreur lors du crawl:', err);
     } finally {
       setIsCrawling(false);
-      // Rafraîchir les données après crawl
-      fetchTools();
     }
   };
 
@@ -204,6 +253,16 @@ export default function WebsiteCrawlerPage() {
     if (httpCode >= 400 && httpCode < 500) return `${httpCode} - Erreur client`;
     if (httpCode >= 500) return `${httpCode} - Erreur serveur`;
     return `${httpCode} - Inconnu`;
+  };
+
+  // Obtenir la classe CSS pour le statut de traitement
+  const getProcessStatusClass = (status: string | undefined) => {
+    switch (status) {
+      case 'pending': return 'animate-pulse bg-blue-50';
+      case 'success': return 'bg-green-50';
+      case 'error': return 'bg-red-50';
+      default: return '';
+    }
   };
 
   return (
@@ -319,7 +378,7 @@ export default function WebsiteCrawlerPage() {
                   ></div>
                 </div>
                 <p className="text-center mt-1 text-sm text-gray-600">
-                  {crawlProgress}% complété
+                  {processedCount} sur {totalToProcess} ({crawlProgress}% complété)
                 </p>
               </div>
             )}
@@ -353,7 +412,7 @@ export default function WebsiteCrawlerPage() {
                 </thead>
                 <tbody>
                   {filteredTools.map((tool) => (
-                    <tr key={tool.id} className="border-b hover:bg-gray-50">
+                    <tr key={tool.id} className={`border-b hover:bg-gray-50 ${getProcessStatusClass(tool.status)}`}>
                       <td className="py-2 px-4">
                         <input
                           type="checkbox"
@@ -379,7 +438,9 @@ export default function WebsiteCrawlerPage() {
                         </span>
                       </td>
                       <td className="py-2 px-4 text-xs">
-                        {tool.httpChain || '-'}
+                        {tool.status === 'pending' ? 
+                          <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full">En cours...</span> :
+                          (tool.httpChain || '-')}
                       </td>
                       <td className="py-2 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
