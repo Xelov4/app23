@@ -3,8 +3,15 @@ import puppeteer from 'puppeteer';
 import { cookies } from 'next/headers';
 import dns from 'dns';
 import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
 
 const dnsLookup = promisify(dns.lookup);
+const mkdir = promisify(fs.mkdir);
+const writeFile = promisify(fs.writeFile);
+const unlink = promisify(fs.unlink);
+const exists = promisify(fs.exists);
 
 // Fonction pour vérifier rapidement si un domaine est résolvable
 async function isDomainResolvable(url: string): Promise<boolean> {
@@ -49,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { url, depth = 2, toolIds } = body;
+    const { url, depth = 2, toolIds, slug } = body;
 
     // Gestion du cas avec toolIds (API utilisée par le composant WebsiteCrawlerPage)
     if (toolIds && Array.isArray(toolIds)) {
@@ -178,12 +185,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Capturer un screenshot si un slug est fourni
+    let screenshotPath = '';
+    if (slug) {
+      try {
+        screenshotPath = await captureScreenshot(url, slug);
+      } catch (error) {
+        console.error('Erreur lors de la capture du screenshot:', error);
+      }
+    }
+
     // Lancer le crawler
     const result = await crawlWebsite(url, depth);
 
     return NextResponse.json({
       content: result.content,
-      externalLinks: result.externalLinks
+      externalLinks: result.externalLinks,
+      screenshotPath
     });
   } catch (error) {
     console.error('Erreur lors du crawling:', error);
@@ -196,6 +214,154 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
+  }
+}
+
+// Fonction pour capturer un screenshot d'un site web
+async function captureScreenshot(url: string, slug: string): Promise<string> {
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-notifications']
+  });
+
+  try {
+    console.log(`Capture de screenshot pour: ${url} (slug: ${slug})`);
+    
+    // Créer le dossier screenshots s'il n'existe pas
+    const screenshotsDir = path.join(process.cwd(), 'public', 'images', 'tools', 'screenshots');
+    if (!await exists(screenshotsDir)) {
+      await mkdir(screenshotsDir, { recursive: true });
+    }
+    
+    const tempPath = path.join(screenshotsDir, `${slug}_temp.png`);
+    const outputPath = path.join(screenshotsDir, `${slug}.png`);
+    const relativePath = `/images/tools/screenshots/${slug}.png`;
+    
+    // Supprimer un fichier existant avec le même nom
+    if (await exists(outputPath)) {
+      await unlink(outputPath);
+    }
+    
+    if (await exists(tempPath)) {
+      await unlink(tempPath);
+    }
+    
+    const page = await browser.newPage();
+    // Définir un agent utilisateur de bureau
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    
+    // Configurer la taille de la fenêtre
+    await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
+    await page.setDefaultNavigationTimeout(30000);
+    
+    // Intercepter et bloquer les requêtes de types trackers, analytics, etc.
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      const url = req.url().toLowerCase();
+      
+      // Bloquer analytics, trackers, et certains types de contenus
+      if (
+        url.includes('google-analytics') || 
+        url.includes('analytics') ||
+        url.includes('facebook.com') ||
+        url.includes('twitter.com') ||
+        url.includes('doubleclick.net') ||
+        url.includes('googleadservices') ||
+        url.includes('ads') ||
+        url.includes('pixel') ||
+        url.includes('tracker')
+      ) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    // Naviguer vers l'URL
+    await page.goto(url, { 
+      waitUntil: 'networkidle2' 
+    });
+    
+    // Essayer de fermer les bannières de cookies et popups
+    try {
+      // Sélecteurs courants pour les bannières de cookies et popups
+      const possibleSelectors = [
+        // Boutons de cookies
+        'button[data-testid="cookie-policy-dialog-accept-button"]',
+        'button[aria-label="Accepter les cookies"]',
+        'button[id*="cookie"]',
+        '.cookie-banner button',
+        '.cookies button',
+        // Textes génériques dans les boutons
+        'button:not([aria-hidden="true"]):not([disabled]):not(.disabled):not(.hidden)', 
+        // Pour essayer de cliquer sur les boutons avec des textes spécifiques
+        'button, a[role="button"]',
+      ];
+
+      for (const selector of possibleSelectors) {
+        const elements = await page.$$(selector);
+        for (const element of elements) {
+          const buttonText = await page.evaluate(el => el.innerText?.toLowerCase() || '', element);
+          if (
+            buttonText.includes('accept') || 
+            buttonText.includes('agree') || 
+            buttonText.includes('close') || 
+            buttonText.includes('got it') ||
+            buttonText.includes('accepter') ||
+            buttonText.includes('fermer') ||
+            buttonText.includes('accepte') ||
+            buttonText.includes('ok')
+          ) {
+            await element.click().catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      // Ignorer les erreurs liées à la fermeture des popups
+      console.log('Attention: Erreur lors de la tentative de fermeture des popups:', e);
+    }
+    
+    // Attendre un peu pour que les éléments se chargent correctement
+    await page.waitForTimeout(3000);
+    
+    // Prendre le screenshot
+    await page.screenshot({ 
+      path: tempPath,
+      fullPage: false,
+      type: 'png'
+    });
+    
+    // Traiter l'image pour la rendre plus adaptée comme logo
+    try {
+      // Charger l'image avec sharp
+      await sharp(tempPath)
+        // Recadrer l'image pour qu'elle soit adaptée à un logo
+        .resize({
+          width: 500,
+          height: 300,
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 0 } // Fond transparent
+        })
+        // Améliorer la qualité
+        .png({ quality: 100 })
+        // Enregistrer dans le dossier final
+        .toFile(outputPath);
+      
+      // Supprimer le fichier temporaire
+      await unlink(tempPath);
+    } catch (error) {
+      console.error("Erreur lors du traitement de l'image:", error);
+      // Si l'opération échoue, utiliser l'image originale
+      fs.renameSync(tempPath, outputPath);
+    }
+    
+    console.log(`Screenshot enregistré: ${outputPath}`);
+    
+    await page.close();
+    return relativePath;
+  } finally {
+    await browser.close();
   }
 }
 

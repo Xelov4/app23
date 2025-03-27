@@ -63,6 +63,7 @@ export default function EnrichToolForm({
   const [processLogs, setProcessLogs] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("form");
   const logsEndRef = React.useRef<HTMLDivElement>(null);
+  const [logoKey, setLogoKey] = useState(Date.now()); // Pour forcer le rafraîchissement de l'image
 
   // État du formulaire
   const [formData, setFormData] = useState({
@@ -174,6 +175,7 @@ export default function EnrichToolForm({
         body: JSON.stringify({
           url: formData.websiteUrl,
           depth: 2,
+          slug: tool.slug,
         }),
       });
 
@@ -199,6 +201,17 @@ export default function EnrichToolForm({
       
       setCrawlContent(data.content);
       addProcessLog(`✅ Crawling terminé : ${data.content.length} caractères récupérés`);
+      
+      // Si un screenshot a été capturé, mettre à jour le logoUrl
+      if (data.screenshotPath) {
+        setFormData(prev => ({
+          ...prev,
+          logoUrl: data.screenshotPath
+        }));
+        setLogoKey(Date.now()); // Forcer le rafraîchissement de l'image
+        addProcessLog(`📸 Screenshot capturé et défini comme logo: ${data.screenshotPath}`);
+        toast.success("Capture d'écran enregistrée comme logo");
+      }
       
       // Analyser les détails du processus dans le contenu (les premières lignes)
       if (data.content) {
@@ -641,9 +654,10 @@ ${content}
                       <p className="text-sm text-gray-500 mb-2">Prévisualisation du logo:</p>
                       <div className="border border-gray-300 rounded-md p-2 bg-white dark:bg-gray-900 flex items-center justify-center">
                         <Image
+                          key={logoKey}
                           src={getImageWithFallback(formData.logoUrl)}
                           alt={`Logo de ${formData.name}`}
-                          width={80}
+                          width={120}
                           height={80}
                           className="object-contain"
                           onError={(e) => {
@@ -651,6 +665,30 @@ ${content}
                             toast.error("Impossible de charger l'image. Vérifiez l'URL.");
                           }}
                         />
+                      </div>
+                      <div className="mt-2 flex space-x-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setLogoKey(Date.now())}
+                        >
+                          Actualiser
+                        </Button>
+                        {formData.logoUrl.includes('/screenshots/') && (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              if (window.confirm("Voulez-vous recapturer le screenshot du site web?")) {
+                                handleCrawlWebsite();
+                              }
+                            }}
+                          >
+                            Recapturer
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
