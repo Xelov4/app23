@@ -189,9 +189,12 @@ export async function POST(request: NextRequest) {
     let screenshotPath = '';
     if (slug) {
       try {
+        console.log(`Tentative de capture d'écran pour ${url} avec slug ${slug}`);
         screenshotPath = await captureScreenshot(url, slug);
+        console.log(`Capture d'écran réussie: ${screenshotPath}`);
       } catch (error) {
-        console.error('Erreur lors de la capture du screenshot:', error);
+        console.error('Erreur détaillée lors de la capture du screenshot:', error);
+        // Continuer même en cas d'erreur de capture d'écran
       }
     }
 
@@ -219,11 +222,7 @@ export async function POST(request: NextRequest) {
 
 // Fonction pour capturer un screenshot d'un site web
 async function captureScreenshot(url: string, slug: string): Promise<string> {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-notifications']
-  });
-
+  let browser = null;
   try {
     console.log(`Capture de screenshot pour: ${url} (slug: ${slug})`);
     
@@ -231,6 +230,7 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
     const screenshotsDir = path.join(process.cwd(), 'public', 'images', 'tools', 'screenshots');
     if (!await exists(screenshotsDir)) {
       await mkdir(screenshotsDir, { recursive: true });
+      console.log(`Dossier de screenshots créé: ${screenshotsDir}`);
     }
     
     const tempPath = path.join(screenshotsDir, `${slug}_temp.png`);
@@ -240,18 +240,45 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
     // Supprimer un fichier existant avec le même nom
     if (await exists(outputPath)) {
       await unlink(outputPath);
+      console.log(`Ancien fichier supprimé: ${outputPath}`);
     }
     
     if (await exists(tempPath)) {
       await unlink(tempPath);
+      console.log(`Ancien fichier temporaire supprimé: ${tempPath}`);
     }
     
+    // Lancer le navigateur avec des options robustes
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-notifications',
+        '--disable-extensions',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
+      ignoreHTTPSErrors: true,
+      timeout: 60000
+    });
+    
+    // Créer une nouvelle page
     const page = await browser.newPage();
+    console.log('Page de navigateur créée');
+    
     // Définir un agent utilisateur de bureau
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    console.log('Agent utilisateur défini');
     
     // Configurer la taille de la fenêtre
     await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
+    console.log('Viewport configuré');
+    
+    // Timeout de navigation plus long
     await page.setDefaultNavigationTimeout(30000);
     
     // Intercepter et bloquer les requêtes de types trackers, analytics, etc.
@@ -277,14 +304,27 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
         req.continue();
       }
     });
+    console.log('Interception des requêtes configurée');
 
-    // Naviguer vers l'URL
-    await page.goto(url, { 
-      waitUntil: 'networkidle2' 
+    // Naviguer vers l'URL avec une gestion d'erreur robuste
+    console.log(`Navigation vers ${url}...`);
+    const response = await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000
+    }).catch(err => {
+      console.error(`Erreur lors de la navigation vers ${url}:`, err);
+      return null;
     });
+    
+    if (!response) {
+      console.warn(`Pas de réponse pour ${url}, mais on continue pour essayer de prendre un screenshot`);
+    } else {
+      console.log(`Navigation réussie: statut HTTP ${response.status()}`);
+    }
     
     // Essayer de fermer les bannières de cookies et popups
     try {
+      console.log('Tentative de fermeture des popups...');
       // Sélecteurs courants pour les bannières de cookies et popups
       const possibleSelectors = [
         // Boutons de cookies
@@ -294,7 +334,7 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
         '.cookie-banner button',
         '.cookies button',
         // Textes génériques dans les boutons
-        'button:not([aria-hidden="true"]):not([disabled]):not(.disabled):not(.hidden)', 
+        'button:not([aria-hidden="true"]):not([disabled]):not(.hidden)', 
         // Pour essayer de cliquer sur les boutons avec des textes spécifiques
         'button, a[role="button"]',
       ];
@@ -317,23 +357,32 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
           }
         }
       }
+      console.log('Popups éventuels fermés');
     } catch (e) {
       // Ignorer les erreurs liées à la fermeture des popups
       console.log('Attention: Erreur lors de la tentative de fermeture des popups:', e);
     }
     
     // Attendre un peu pour que les éléments se chargent correctement
-    await page.waitForTimeout(3000);
+    // Remplacer waitForTimeout par setTimeout avec Promise
+    console.log('Attente de 3 secondes pour le chargement complet...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Prendre le screenshot
+    console.log(`Prise du screenshot vers ${tempPath}...`);
     await page.screenshot({ 
       path: tempPath,
       fullPage: false,
       type: 'png'
+    }).catch(err => {
+      console.error(`Erreur lors de la prise du screenshot:`, err);
+      throw err; // Propager l'erreur
     });
+    console.log('Screenshot capturé avec succès');
     
     // Traiter l'image pour la rendre plus adaptée comme logo
     try {
+      console.log('Traitement de l\'image avec sharp...');
       // Charger l'image avec sharp
       await sharp(tempPath)
         // Recadrer l'image pour qu'elle soit adaptée à un logo
@@ -350,18 +399,36 @@ async function captureScreenshot(url: string, slug: string): Promise<string> {
       
       // Supprimer le fichier temporaire
       await unlink(tempPath);
+      console.log('Image traitée et enregistrée');
     } catch (error) {
       console.error("Erreur lors du traitement de l'image:", error);
       // Si l'opération échoue, utiliser l'image originale
-      fs.renameSync(tempPath, outputPath);
+      if (await exists(tempPath)) {
+        fs.renameSync(tempPath, outputPath);
+        console.log('Fallback: utilisation de l\'image originale sans traitement');
+      } else {
+        throw new Error('Impossible de traiter ou d\'utiliser l\'image temporaire');
+      }
     }
     
+    await page.close();
     console.log(`Screenshot enregistré: ${outputPath}`);
     
-    await page.close();
     return relativePath;
+  } catch (error) {
+    console.error(`Erreur complète lors de la capture d'écran:`, error);
+    
+    // Essayer d'utiliser une image par défaut comme fallback
+    const fallbackPath = `/images/tools/ai-frame.png`;
+    console.log(`Utilisation de l'image par défaut: ${fallbackPath}`);
+    
+    return fallbackPath;
   } finally {
-    await browser.close();
+    // Fermer le navigateur s'il a été créé
+    if (browser) {
+      await browser.close().catch(err => console.error('Erreur lors de la fermeture du navigateur:', err));
+      console.log('Navigateur fermé');
+    }
   }
 }
 
