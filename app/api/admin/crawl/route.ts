@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { url, depth = 1, toolIds } = body;
+    const { url, depth = 2, toolIds } = body;
 
     // Gestion du cas avec toolIds (API utilisée par le composant WebsiteCrawlerPage)
     if (toolIds && Array.isArray(toolIds)) {
@@ -170,23 +170,28 @@ export async function POST(request: NextRequest) {
         { 
           message: 'Le domaine n\'est pas résolvable',
           error: 'DNS_ERROR',
-          content: ''
+          content: '',
+          externalLinks: []
         },
         { status: 200 }
       );
     }
 
     // Lancer le crawler
-    const content = await crawlWebsite(url, depth);
+    const result = await crawlWebsite(url, depth);
 
-    return NextResponse.json({ content });
+    return NextResponse.json({
+      content: result.content,
+      externalLinks: result.externalLinks
+    });
   } catch (error) {
     console.error('Erreur lors du crawling:', error);
     return NextResponse.json(
       { 
         message: 'Erreur lors du crawling: ' + (error as Error).message,
         error: 'CRAWL_ERROR',
-        content: ''
+        content: '',
+        externalLinks: []
       },
       { status: 200 }
     );
@@ -194,7 +199,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Fonction pour crawler un site web
-async function crawlWebsite(url: string, depth: number): Promise<string> {
+async function crawlWebsite(url: string, depth: number): Promise<{content: string, externalLinks: string[]}> {
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -203,80 +208,130 @@ async function crawlWebsite(url: string, depth: number): Promise<string> {
   try {
     console.log(`Démarrage du crawling: ${url} (profondeur: ${depth})`);
     const visitedUrls = new Set<string>();
+    const externalLinks = new Set<string>();
+    const socialMediaDomains = [
+      'twitter.com', 'x.com',
+      'facebook.com', 'fb.com',
+      'instagram.com',
+      'linkedin.com',
+      'github.com',
+      'youtube.com',
+      'tiktok.com',
+      'pinterest.com',
+      'discord.com', 'discord.gg',
+      'medium.com',
+      'reddit.com'
+    ];
+    
     let allContent = '';
+    let processDetails = `Processus de crawling pour ${url}\n`;
+    processDetails += `========================================\n`;
 
     // Extraire le domaine de base
     const urlObj = new URL(url);
     const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
     
     // Crawler récursif
-    async function crawl(currentUrl: string, currentDepth: number) {
-      if (currentDepth > depth || visitedUrls.has(currentUrl)) {
+    async function crawl(currentUrl: string, currentDepth: number, isExternalLink: boolean = false) {
+      if (currentDepth > depth) {
         return;
       }
 
+      // Si on a déjà visité cette URL, on saute
+      if (visitedUrls.has(currentUrl)) {
+        return;
+      }
+
+      // Marquer comme visitée et ajouter aux détails du processus
       visitedUrls.add(currentUrl);
-      console.log(`Crawling: ${currentUrl} (profondeur: ${currentDepth})`);
+      processDetails += `[Profondeur ${currentDepth}] Crawling: ${currentUrl}\n`;
 
       const page = await browser.newPage();
       
       try {
+        // Ignorer les ressources inutiles pour accélérer le crawling
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const resourceType = req.resourceType();
+          if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
+        
         // Configuration du timeout et attente de navigation
-        await page.setDefaultNavigationTimeout(30000);
+        await page.setDefaultNavigationTimeout(20000);
         const response = await page.goto(currentUrl, {
-          waitUntil: 'networkidle2',
+          waitUntil: 'domcontentloaded',
         });
 
-        if (!response || response.status() !== 200) {
-          console.log(`Échec lors de l'accès à ${currentUrl}: ${response?.status()}`);
+        if (!response) {
+          processDetails += `  ✘ Pas de réponse pour ${currentUrl}\n`;
           await page.close();
           return;
         }
 
-        // Récupérer le contenu textuel de la page
-        const pageContent = await page.evaluate(() => {
-          // Fonction pour extraire tout le texte visible
-          function extractVisibleText() {
-            const elements = document.querySelectorAll('body *');
-            let text = '';
-            
-            for (const element of Array.from(elements)) {
-              // Vérifier si l'élément est visible
-              const style = window.getComputedStyle(element);
-              const isVisible = style.display !== 'none' && 
-                               style.visibility !== 'hidden' && 
-                               style.opacity !== '0';
+        const status = response.status();
+        if (status !== 200) {
+          processDetails += `  ✘ Échec d'accès (${status}) pour ${currentUrl}\n`;
+          await page.close();
+          return;
+        }
+
+        processDetails += `  ✓ Accès réussi (${status}) pour ${currentUrl}\n`;
+
+        // N'extraire le contenu que si ce n'est pas un lien externe ou si c'est un réseau social
+        let pageContent = { title: '', metaDescription: '', visibleText: '' };
+        const currentUrlObj = new URL(currentUrl);
+        const isSocialMedia = socialMediaDomains.some(domain => currentUrlObj.hostname.includes(domain));
+        
+        if (!isExternalLink || isSocialMedia) {
+          // Récupérer le contenu textuel de la page
+          pageContent = await page.evaluate(() => {
+            // Fonction pour extraire tout le texte visible
+            function extractVisibleText() {
+              const elements = document.querySelectorAll('body *');
+              let text = '';
               
-              if (isVisible && element.textContent?.trim()) {
-                text += element.textContent.trim() + ' ';
+              for (const element of Array.from(elements)) {
+                // Vérifier si l'élément est visible
+                const style = window.getComputedStyle(element);
+                const isVisible = style.display !== 'none' && 
+                                 style.visibility !== 'hidden' && 
+                                 style.opacity !== '0';
+                
+                if (isVisible && element.textContent?.trim()) {
+                  text += element.textContent.trim() + ' ';
+                }
               }
+              
+              return text;
             }
             
-            return text;
-          }
-          
-          // Extraire le titre
-          const title = document.title || '';
-          
-          // Extraire la méta description
-          let metaDescription = '';
-          const metaDescElement = document.querySelector('meta[name="description"]');
-          if (metaDescElement && metaDescElement.getAttribute('content')) {
-            metaDescription = metaDescElement.getAttribute('content') || '';
-          }
-          
-          // Extraire le contenu principal
-          const visibleText = extractVisibleText();
-          
-          return {
-            title,
-            metaDescription,
-            visibleText
-          };
-        });
+            // Extraire le titre
+            const title = document.title || '';
+            
+            // Extraire la méta description
+            let metaDescription = '';
+            const metaDescElement = document.querySelector('meta[name="description"]');
+            if (metaDescElement && metaDescElement.getAttribute('content')) {
+              metaDescription = metaDescElement.getAttribute('content') || '';
+            }
+            
+            // Extraire le contenu principal
+            const visibleText = extractVisibleText();
+            
+            return {
+              title,
+              metaDescription,
+              visibleText
+            };
+          });
 
-        // Ajouter le contenu de la page
-        allContent += `
+          // Ajouter le contenu de la page
+          if (!isExternalLink) {
+            allContent += `
 === Page: ${currentUrl} ===
 Titre: ${pageContent.title}
 Description: ${pageContent.metaDescription}
@@ -284,56 +339,129 @@ Contenu:
 ${pageContent.visibleText}
 
 `;
+            processDetails += `  ✓ Contenu extrait (${pageContent.visibleText.length} caractères)\n`;
+          } else if (isSocialMedia) {
+            allContent += `
+=== Réseau social: ${currentUrl} ===
+Titre: ${pageContent.title}
+Description: ${pageContent.metaDescription}
+Contenu partiel:
+${pageContent.visibleText.substring(0, 200)}...
 
-        // Si nous sommes à la profondeur maximale, ne pas récupérer les liens
-        if (currentDepth === depth) {
-          await page.close();
-          return;
+`;
+            processDetails += `  ✓ Contenu social extrait\n`;
+          }
         }
 
         // Récupérer tous les liens de la page
-        const links = await page.evaluate((baseDomain) => {
+        const links = await page.evaluate(() => {
           const anchors = Array.from(document.querySelectorAll('a[href]'));
           return anchors
-            .map(anchor => anchor.getAttribute('href'))
-            .filter(href => href && 
-                   !href.startsWith('#') && 
-                   !href.startsWith('mailto:') && 
-                   !href.startsWith('tel:') &&
-                   !href.includes('javascript:'))
-            .map(href => {
+            .map(anchor => {
+              const href = anchor.getAttribute('href');
+              // Récupérer aussi le texte du lien pour aider à identifier les liens sociaux
+              const linkText = anchor.textContent?.trim() || '';
+              return { href, linkText };
+            })
+            .filter(link => link.href && 
+                   !link.href.startsWith('#') && 
+                   !link.href.startsWith('mailto:') && 
+                   !link.href.startsWith('tel:') &&
+                   !link.href.includes('javascript:'))
+            .map(link => {
               try {
-                // Convertir les chemins relatifs en URLs absolues
-                if (href?.startsWith('/')) {
-                  return `${baseDomain}${href}`;
-                } else if (href && !href.startsWith('http')) {
-                  return `${baseDomain}/${href}`;
-                }
-                return href;
+                return {
+                  href: link.href,
+                  text: link.linkText
+                };
               } catch (e) {
                 return null;
               }
             })
-            .filter(href => href && 
-                   // Rester sur le même domaine
-                   href.startsWith(baseDomain));
-        }, baseDomain);
+            .filter(link => link !== null);
+        });
 
         await page.close();
 
-        // Crawler les liens trouvés
-        const uniqueLinks = Array.from(new Set(links));
+        const internalLinks = [];
+        const newExternalLinks = [];
+
+        // Traiter chaque lien récupéré
+        for (const link of links) {
+          try {
+            let fullUrl = link.href;
+            
+            // Convertir les chemins relatifs en URLs absolues
+            if (fullUrl.startsWith('/')) {
+              fullUrl = `${baseDomain}${fullUrl}`;
+            } else if (!fullUrl.startsWith('http')) {
+              fullUrl = `${baseDomain}/${fullUrl}`;
+            }
+            
+            const linkUrl = new URL(fullUrl);
+            const isSameDomain = linkUrl.hostname === urlObj.hostname;
+            const isSocialMedia = socialMediaDomains.some(domain => linkUrl.hostname.includes(domain));
+            
+            // Si c'est un lien interne et qu'on ne l'a pas encore visité
+            if (isSameDomain && !visitedUrls.has(fullUrl)) {
+              internalLinks.push(fullUrl);
+            } 
+            // Si c'est un lien externe (en particulier un réseau social)
+            else if (!isSameDomain) {
+              // Identifier les liens sociaux basés sur le domaine ou le texte du lien
+              const linkTextLower = link.text.toLowerCase();
+              const isSocialLink = isSocialMedia || 
+                                  linkTextLower.includes('twitter') || 
+                                  linkTextLower.includes('facebook') || 
+                                  linkTextLower.includes('instagram') || 
+                                  linkTextLower.includes('linkedin') || 
+                                  linkTextLower.includes('github') ||
+                                  linkTextLower.includes('youtube') ||
+                                  linkTextLower.includes('follow us') ||
+                                  linkTextLower.includes('suivez-nous');
+              
+              if (isSocialLink && !visitedUrls.has(fullUrl)) {
+                newExternalLinks.push(fullUrl);
+                // Ajouter aux liens externes trouvés
+                externalLinks.add(fullUrl);
+                processDetails += `  ↗ Lien social trouvé: ${fullUrl}\n`;
+              }
+            }
+          } catch (error) {
+            // Ignorer les liens invalides
+            continue;
+          }
+        }
+
+        // Si nous sommes à la profondeur maximale, arrêter l'exploration
+        if (currentDepth === depth) {
+          return;
+        }
+
+        // Limiter le nombre de liens à crawler pour éviter des crawls trop longs
+        const limitedInternalLinks = internalLinks.slice(0, 10);
+        processDetails += `  → ${limitedInternalLinks.length} liens internes retenus sur ${internalLinks.length} trouvés\n`;
         
-        // Limiter le nombre de liens à crawler (pour éviter des crawls trop longs)
-        const limitedLinks = uniqueLinks.slice(0, 5);
-        
-        for (const link of limitedLinks) {
-          if (link && !visitedUrls.has(link)) {
+        // Crawler les liens internes
+        for (const link of limitedInternalLinks) {
+          if (!visitedUrls.has(link)) {
             await crawl(link, currentDepth + 1);
+          }
+        }
+        
+        // Crawler les nouveaux liens externes (réseaux sociaux) avec une profondeur limitée
+        // Uniquement si nous sommes encore à une faible profondeur
+        if (currentDepth <= 1) {
+          const limitedExternalLinks = newExternalLinks.slice(0, 5);
+          for (const link of limitedExternalLinks) {
+            if (!visitedUrls.has(link)) {
+              await crawl(link, depth, true); // Pour les liens externes, on utilise la profondeur maximale directement
+            }
           }
         }
       } catch (error) {
         console.error(`Erreur lors du crawling de ${currentUrl}:`, error);
+        processDetails += `  ✘ Erreur: ${(error as Error).message}\n`;
         await page.close();
       }
     }
@@ -341,7 +469,16 @@ ${pageContent.visibleText}
     // Démarrer le crawling à partir de l'URL de base
     await crawl(url, 0);
     
-    return allContent;
+    processDetails += `\nCrawling terminé. ${visitedUrls.size} URLs visitées.\n`;
+    processDetails += `${externalLinks.size} liens sociaux/externes trouvés.\n`;
+    
+    // Ajouter les détails du processus au contenu
+    allContent = processDetails + "\n\n" + allContent;
+    
+    return {
+      content: allContent,
+      externalLinks: Array.from(externalLinks)
+    };
   } finally {
     await browser.close();
   }
