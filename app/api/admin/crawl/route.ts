@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     // Vérification de la présence du cookie de session
     const cookiesStore = cookies();
-    const adminSessionCookie = cookiesStore.get('admin_session');
+    const adminSessionCookie = await cookiesStore.get('admin_session');
     
     // Vérification simplifiée de l'authentification
     if (!adminSessionCookie) {
@@ -120,7 +120,8 @@ export async function POST(request: NextRequest) {
             // Construire la chaîne HTTP
             let httpChain = '';
             if (response) {
-              httpChain = `HTTP/${response.httpVersion()} ${response.status()} ${response.statusText()}`;
+              const httpVersion = response.request().response()?.httpVersion || '1.1';
+              httpChain = `HTTP/${httpVersion} ${response.status()} ${response.statusText()}`;
               if (redirectUrls.length > 0) {
                 httpChain += ` (${redirectUrls.length} redirections)`;
               }

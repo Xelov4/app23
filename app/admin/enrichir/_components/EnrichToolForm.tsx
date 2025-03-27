@@ -635,6 +635,24 @@ ${content}
                     onChange={handleInputChange}
                     className="mt-1"
                   />
+                  {formData.logoUrl && (
+                    <div className="mt-2 flex flex-col items-center">
+                      <p className="text-sm text-gray-500 mb-2">Prévisualisation du logo:</p>
+                      <div className="border border-gray-300 rounded-md p-2 bg-white dark:bg-gray-900 flex items-center justify-center">
+                        <Image
+                          src={formData.logoUrl}
+                          alt={`Logo de ${formData.name}`}
+                          width={80}
+                          height={80}
+                          className="object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            toast.error("Impossible de charger l'image. Vérifiez l'URL.");
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
