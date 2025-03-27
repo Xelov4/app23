@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap principal
+Sitemap: https://www.video-ia.net/sitemap-index.xml
