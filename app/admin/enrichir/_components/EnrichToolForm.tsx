@@ -14,6 +14,7 @@ import { toast } from "react-hot-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { getImageWithFallback } from "@/lib/design-system/primitives";
 
 // Type personnalisé pour l'outil avec relations
 type ToolWithRelations = Tool & {
@@ -640,13 +641,13 @@ ${content}
                       <p className="text-sm text-gray-500 mb-2">Prévisualisation du logo:</p>
                       <div className="border border-gray-300 rounded-md p-2 bg-white dark:bg-gray-900 flex items-center justify-center">
                         <Image
-                          src={formData.logoUrl}
+                          src={getImageWithFallback(formData.logoUrl)}
                           alt={`Logo de ${formData.name}`}
                           width={80}
                           height={80}
                           className="object-contain"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
+                            console.error("Erreur de chargement de l'image:", formData.logoUrl);
                             toast.error("Impossible de charger l'image. Vérifiez l'URL.");
                           }}
                         />

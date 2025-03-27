@@ -89,14 +89,15 @@ async function getAllUseCases() {
 export default async function EnrichToolPage({ params }: { params: { slug: string } }) {
   // Vérification de la présence du cookie de session admin
   const cookiesStore = cookies();
-  const adminSessionCookie = cookiesStore.get('admin_session');
+  const adminSessionCookie = await cookiesStore.get('admin_session');
   
   if (!adminSessionCookie) {
     console.log("Redirection vers /admin: cookie admin_session manquant");
     redirect('/admin');
   }
 
-  const tool = await getToolBySlug(params.slug);
+  const slug = params.slug;
+  const tool = await getToolBySlug(slug);
   
   if (!tool) {
     notFound();

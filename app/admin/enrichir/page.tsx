@@ -29,7 +29,7 @@ async function getTools() {
 export default async function EnrichirPage() {
   // Vérification de la présence du cookie de session admin
   const cookiesStore = cookies();
-  const adminSessionCookie = cookiesStore.get('admin_session');
+  const adminSessionCookie = await cookiesStore.get('admin_session');
   
   if (!adminSessionCookie) {
     console.log("Redirection vers /admin: cookie admin_session manquant");
