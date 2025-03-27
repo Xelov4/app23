@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { db } from './db';
+import * as bcrypt from 'bcrypt';
 
 // Fonction pour vérifier si un utilisateur est connecté en tant qu'admin
 export async function isAdmin(): Promise<boolean> {
@@ -49,6 +50,12 @@ export async function createAdminSession(userId: string): Promise<string> {
   return sessionToken;
 }
 
+// Fonction pour hacher un mot de passe (utilisée lors de la création d'un utilisateur)
+export async function hashPassword(password: string): Promise<string> {
+  const saltRounds = 10;
+  return bcrypt.hash(password, saltRounds);
+}
+
 // Fonction pour vérifier les identifiants de connexion
 export async function verifyCredentials(
   username: string,
@@ -62,15 +69,38 @@ export async function verifyCredentials(
     });
     
     if (!user) {
+      // Utiliser un délai aléatoire pour éviter les attaques de timing
+      await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 200) + 100));
       return { authenticated: false };
     }
     
-    // Dans un cas réel, vous utiliseriez bcrypt pour comparer les mots de passe hachés
-    // Exemple: const isValid = await bcrypt.compare(password, user.password);
+    // Utiliser bcrypt pour comparer les mots de passe
+    let isValid = false;
     
-    // Pour cet exemple, nous faisons une comparaison simple
-    // ATTENTION: En production, utilisez toujours bcrypt ou argon2 pour les mots de passe
-    const isValid = user.password === password;
+    try {
+      // Si le mot de passe est déjà haché avec bcrypt
+      if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
+        isValid = await bcrypt.compare(password, user.password);
+      } else {
+        // Comparaison en texte brut (uniquement pour la migration)
+        // À terme, tous les mots de passe devraient être hachés
+        isValid = user.password === password;
+        
+        // Si connexion réussie avec un mot de passe en clair, 
+        // mettre à jour vers un mot de passe haché
+        if (isValid) {
+          const hashedPassword = await hashPassword(password);
+          await db.user.update({
+            where: { id: user.id },
+            data: { password: hashedPassword }
+          });
+          console.log(`Mot de passe haché mis à jour pour l'utilisateur: ${user.id}`);
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors de la comparaison des mots de passe:', err);
+      isValid = false;
+    }
     
     if (!isValid || user.role !== 'ADMIN') {
       return { authenticated: false };

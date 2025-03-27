@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,24 @@ const PricingType = {
 };
 
 async function main() {
+  // Créer un utilisateur administrateur par défaut
+  const adminPassword = 'admin123'; // Changez ceci pour un mot de passe plus sécurisé
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+  
+  // Créer ou mettre à jour l'utilisateur admin
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@video-ia.net' },
+    update: {}, // Ne pas mettre à jour si existe déjà
+    create: {
+      email: 'admin@video-ia.net',
+      name: 'Administrateur',
+      password: hashedPassword,
+      role: 'ADMIN'
+    }
+  });
+  
+  console.log('Utilisateur administrateur créé ou mis à jour:', admin.email);
+
   // Créer ou récupérer les catégories
   const categoriesData = [
     { name: "Génération d'images", slug: "generation-images", description: "Outils IA pour créer des images à partir de descriptions textuelles" },

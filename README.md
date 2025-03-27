@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# video-ia.net
 
-## Getting Started
+Site de référencement des outils d'intelligence artificielle pour la vidéo.
 
-First, run the development server:
+## À propos du projet
+
+video-ia.net est un site catalogue qui répertorie et présente les différents outils d'IA spécialisés dans la création, l'édition et la production vidéo. Il permet aux utilisateurs de découvrir, comparer et choisir les meilleurs outils adaptés à leurs besoins.
+
+## Technologies utilisées
+
+- **Framework**: [Next.js 15](https://nextjs.org/)
+- **Base de données**: SQLite avec [Prisma ORM](https://www.prisma.io/)
+- **UI/UX**: [Tailwind CSS](https://tailwindcss.com/) et [Shadcn/UI](https://ui.shadcn.com/)
+- **Déploiement**: Nginx, PM2, Certbot pour SSL
+
+## Prérequis
+
+- Node.js 18+ et npm
+- Nginx
+- PM2 (`npm install -g pm2`)
+- Certbot (pour le SSL)
+
+## Installation et démarrage local
 
 ```bash
+# Cloner le dépôt (si vous utilisez git)
+git clone https://github.com/votre-compte/video-ia.net.git
+cd video-ia.net
+
+# Installer les dépendances
+npm install
+
+# Générer les types Prisma
+npx prisma generate
+
+# Appliquer les migrations à la base de données
+npx prisma db push
+
+# Charger les données initiales
+npm run db:seed
+
+# Démarrer le serveur de développement
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) avec votre navigateur pour voir le résultat.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Déploiement en production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Nous fournissons des scripts pour faciliter le déploiement:
 
-## Learn More
+```bash
+# Script de déploiement complet
+./deploy.sh
 
-To learn more about Next.js, take a look at the following resources:
+# Vérification de santé 
+./health-check.sh
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Pour plus de détails sur le déploiement, consultez le fichier [DEPLOIEMENT.md](./DEPLOIEMENT.md).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Configuration des certificats SSL
 
-## Deploy on Vercel
+Une fois le déploiement initial terminé, vous pouvez configurer SSL:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+sudo certbot --nginx -d video-ia.net -d www.video-ia.net
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Structure du projet
+
+- `app/` - Code source de l'application Next.js
+  - `api/` - Routes API
+  - `components/` - Composants spécifiques à l'application
+  - `tools/` - Pages pour les outils
+  - `categories/` - Pages pour les catégories
+  - `admin/` - Interface d'administration
+- `components/` - Composants UI réutilisables
+- `lib/` - Utilitaires et configurations partagées
+- `prisma/` - Schéma et seed de la base de données
+- `public/` - Fichiers statiques
+
+## Maintenance
+
+### Mise à jour de l'application
+
+```bash
+# Mettre à jour le code source (si vous utilisez git)
+git pull
+
+# Installer les dépendances
+npm install
+
+# Reconstruire l'application
+npm run build
+
+# Redémarrer l'application
+pm2 reload video-ia.net
+```
+
+### Sauvegarde de la base de données
+
+La base de données SQLite est située dans `prisma/dev.db`. Vous pouvez la sauvegarder simplement en copiant ce fichier.
+
+### Surveillance et logs
+
+- Logs PM2: `pm2 logs video-ia.net`
+- Logs Nginx: `/var/log/nginx/access.log` et `/var/log/nginx/error.log`
+- Logs de l'application: `/root/logs/video-ia-err.log` et `/root/logs/video-ia-out.log`
+
+## Licence
+
+[MIT](https://opensource.org/licenses/MIT)
