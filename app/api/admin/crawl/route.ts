@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { isAdmin } from '@/lib/auth';
+import puppeteer from 'puppeteer';
+import { cookies } from 'next/headers';
 import dns from 'dns';
 import { promisify } from 'util';
 
@@ -32,216 +32,317 @@ async function isDomainResolvable(url: string): Promise<boolean> {
   }
 }
 
-// Fonction pour suivre les redirections HTTP
-async function followRedirects(url: string, maxRedirects = 5): Promise<{ chain: string, finalUrl: string, finalCode: number }> {
-  let currentUrl = url;
-  let redirectChain: string[] = [];
-  let finalCode = 0;
-  let redirectCount = 0;
-  let finalUrl = url;
-  
-  try {
-    // Timeout de 5 secondes pour les requêtes
-    const timeoutController = new AbortController();
-    const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
-    
-    while (redirectCount < maxRedirects) {
-      const response = await fetch(currentUrl, { 
-        method: 'HEAD', 
-        redirect: 'manual',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        },
-        signal: timeoutController.signal
-      });
-      
-      const statusCode = response.status;
-      redirectChain.push(statusCode.toString());
-      
-      if (statusCode >= 300 && statusCode < 400) {
-        const location = response.headers.get('location');
-        if (!location) break;
-        
-        // Construire l'URL complète si c'est un chemin relatif
-        const nextUrl = new URL(location, currentUrl).toString();
-        currentUrl = nextUrl;
-        finalUrl = nextUrl;
-        redirectCount++;
-      } else {
-        finalCode = statusCode;
-        break;
-      }
-    }
-    
-    clearTimeout(timeoutId);
-    
-    // Si GET donne un meilleur résultat que HEAD, on utilise celle-là
-    if (finalCode === 405 || finalCode === 404 || finalCode === 0) {
-      try {
-        const getController = new AbortController();
-        const getTimeoutId = setTimeout(() => getController.abort(), 5000);
-        
-        const getResponse = await fetch(finalUrl, {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          },
-          signal: getController.signal
-        });
-        
-        clearTimeout(getTimeoutId);
-        finalCode = getResponse.status;
-        redirectChain.push(`GET: ${finalCode}`);
-      } catch (getError) {
-        console.error(`Erreur lors de la requête GET pour ${finalUrl}:`, getError);
-      }
-    }
-    
-    return {
-      chain: redirectChain.join(' > '),
-      finalUrl,
-      finalCode
-    };
-  } catch (error: unknown) {
-    console.error(`Erreur lors du suivi des redirections pour ${url}:`, error);
-    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
-      return {
-        chain: 'Timeout',
-        finalUrl,
-        finalCode: 0
-      };
-    }
-    return {
-      chain: redirectChain.length > 0 ? redirectChain.join(' > ') : 'Erreur',
-      finalUrl,
-      finalCode: 0
-    };
-  }
-}
-
-// POST /api/admin/crawl - Crawler une liste d'outils
+// POST /api/admin/crawl
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier si l'utilisateur est admin - temporairement désactivé pour debug
-    /*
-    const authorized = await isAdmin();
-    if (!authorized) {
+    // Vérification de la présence du cookie de session
+    const cookiesStore = cookies();
+    const adminSessionCookie = cookiesStore.get('admin_session');
+    
+    // Vérification simplifiée de l'authentification
+    if (!adminSessionCookie) {
+      console.log("Accès non autorisé: cookie admin_session manquant");
       return NextResponse.json(
-        { message: 'Non autorisé' },
+        { message: 'Accès non autorisé' },
         { status: 401 }
       );
     }
-    */
 
     const body = await request.json();
-    const { toolIds } = body;
+    const { url, depth = 1, toolIds } = body;
 
-    if (!toolIds || !Array.isArray(toolIds) || toolIds.length === 0) {
+    // Gestion du cas avec toolIds (API utilisée par le composant WebsiteCrawlerPage)
+    if (toolIds && Array.isArray(toolIds)) {
+      // Récupérer les informations sur les outils depuis la base de données
+      const db = await import('@/lib/db').then(module => module.db);
+      const tools = await db.tool.findMany({
+        where: {
+          id: {
+            in: toolIds
+          }
+        },
+        select: {
+          id: true,
+          websiteUrl: true
+        }
+      });
+      
+      // Résultats pour chaque outil
+      const results = [];
+      
+      // Crawler chaque outil un par un
+      for (const tool of tools) {
+        if (!tool.websiteUrl) {
+          results.push({
+            id: tool.id,
+            httpCode: 0,
+            httpChain: 'NO_URL',
+            finalUrl: '',
+            error: 'URL manquante'
+          });
+          continue;
+        }
+        
+        try {
+          // Vérifier si le domaine est résolvable
+          const isResolvable = await isDomainResolvable(tool.websiteUrl);
+          if (!isResolvable) {
+            results.push({
+              id: tool.id,
+              httpCode: 0,
+              httpChain: 'DNS',
+              finalUrl: tool.websiteUrl,
+              error: 'Domaine non résolvable'
+            });
+            continue;
+          }
+          
+          // Tester l'URL avec Puppeteer
+          const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+          
+          try {
+            const page = await browser.newPage();
+            await page.setDefaultNavigationTimeout(10000);
+            
+            // Naviguer vers l'URL
+            const response = await page.goto(tool.websiteUrl, { 
+              waitUntil: 'networkidle2' 
+            });
+            
+            // Récupérer la chaîne de redirection
+            const chain = response?.request().redirectChain() || [];
+            const redirectUrls = chain.map(req => req.url());
+            const finalUrl = response ? response.url() : tool.websiteUrl;
+            
+            // Construire la chaîne HTTP
+            let httpChain = '';
+            if (response) {
+              httpChain = `HTTP/${response.httpVersion()} ${response.status()} ${response.statusText()}`;
+              if (redirectUrls.length > 0) {
+                httpChain += ` (${redirectUrls.length} redirections)`;
+              }
+            } else {
+              httpChain = 'ERROR';
+            }
+            
+            results.push({
+              id: tool.id,
+              httpCode: response ? response.status() : 0,
+              httpChain,
+              finalUrl,
+              error: response && response.status() >= 400 ? 'Erreur HTTP' : undefined
+            });
+            
+            await page.close();
+          } finally {
+            await browser.close();
+          }
+        } catch (error) {
+          console.error(`Erreur lors du crawling de ${tool.websiteUrl}:`, error);
+          results.push({
+            id: tool.id,
+            httpCode: 0,
+            httpChain: 'ERROR',
+            finalUrl: tool.websiteUrl,
+            error: (error as Error).message
+          });
+        }
+      }
+      
+      return NextResponse.json({ results });
+    }
+
+    // Cas simple avec une URL
+    if (!url) {
       return NextResponse.json(
-        { message: 'Liste d\'identifiants d\'outils invalide' },
+        { message: 'URL requise' },
         { status: 400 }
       );
     }
 
-    // Récupérer les outils à crawler
-    const tools = await db.tool.findMany({
-      where: {
-        id: {
-          in: toolIds
-        }
-      },
-      select: {
-        id: true,
-        name: true,
-        websiteUrl: true
-      }
-    });
-
-    // Résultats du crawl
-    const results = [];
-
-    // Crawler chaque outil séquentiellement pour éviter de surcharger le serveur
-    for (const tool of tools) {
-      try {
-        console.log(`Crawling ${tool.name} (${tool.websiteUrl})...`);
-        let url = tool.websiteUrl;
-        
-        // Vérifier si l'URL a un protocole, sinon ajouter https://
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          url = 'https://' + url;
-        }
-        
-        // Vérifier si le domaine est résolvable
-        const isDnsResolvable = await isDomainResolvable(url);
-        
-        if (!isDnsResolvable) {
-          // Mettre à jour l'outil dans la base de données
-          await db.tool.update({
-            where: { id: tool.id },
-            data: { 
-              httpCode: 0
-            }
-          });
-          
-          results.push({
-            id: tool.id,
-            name: tool.name,
-            originalUrl: tool.websiteUrl,
-            finalUrl: tool.websiteUrl,
-            httpCode: 0,
-            httpChain: 'DNS'
-          });
-          
-          continue; // Passer à l'outil suivant
-        }
-        
-        // Suivre les redirections et obtenir le code HTTP final
-        const { chain, finalUrl, finalCode } = await followRedirects(url);
-        
-        // Mettre à jour l'outil dans la base de données
-        await db.tool.update({
-          where: { id: tool.id },
-          data: { 
-            httpCode: finalCode,
-            ...(finalUrl !== url && {
-              websiteUrl: finalUrl
-            })
-          }
-        });
-        
-        results.push({
-          id: tool.id,
-          name: tool.name,
-          originalUrl: tool.websiteUrl,
-          finalUrl,
-          httpCode: finalCode,
-          httpChain: chain
-        });
-        
-      } catch (error) {
-        console.error(`Erreur lors du traitement de l'outil ${tool.id}:`, error);
-        results.push({
-          id: tool.id,
-          name: tool.name,
-          originalUrl: tool.websiteUrl,
-          error: (error as Error).message
-        });
-      }
-      
-      // Attendre un peu entre chaque requête pour éviter de surcharger le serveur
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Vérifier si le domaine est résolvable
+    const isResolvable = await isDomainResolvable(url);
+    if (!isResolvable) {
+      return NextResponse.json(
+        { 
+          message: 'Le domaine n\'est pas résolvable',
+          error: 'DNS_ERROR',
+          content: ''
+        },
+        { status: 200 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      results
-    });
-    
+    // Lancer le crawler
+    const content = await crawlWebsite(url, depth);
+
+    return NextResponse.json({ content });
   } catch (error) {
-    console.error('Erreur lors du crawl des URLs:', error);
+    console.error('Erreur lors du crawling:', error);
     return NextResponse.json(
-      { message: 'Erreur lors du crawl des URLs', error: (error as Error).message },
-      { status: 500 }
+      { 
+        message: 'Erreur lors du crawling: ' + (error as Error).message,
+        error: 'CRAWL_ERROR',
+        content: ''
+      },
+      { status: 200 }
     );
+  }
+}
+
+// Fonction pour crawler un site web
+async function crawlWebsite(url: string, depth: number): Promise<string> {
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
+  try {
+    console.log(`Démarrage du crawling: ${url} (profondeur: ${depth})`);
+    const visitedUrls = new Set<string>();
+    let allContent = '';
+
+    // Extraire le domaine de base
+    const urlObj = new URL(url);
+    const baseDomain = `${urlObj.protocol}//${urlObj.hostname}`;
+    
+    // Crawler récursif
+    async function crawl(currentUrl: string, currentDepth: number) {
+      if (currentDepth > depth || visitedUrls.has(currentUrl)) {
+        return;
+      }
+
+      visitedUrls.add(currentUrl);
+      console.log(`Crawling: ${currentUrl} (profondeur: ${currentDepth})`);
+
+      const page = await browser.newPage();
+      
+      try {
+        // Configuration du timeout et attente de navigation
+        await page.setDefaultNavigationTimeout(30000);
+        const response = await page.goto(currentUrl, {
+          waitUntil: 'networkidle2',
+        });
+
+        if (!response || response.status() !== 200) {
+          console.log(`Échec lors de l'accès à ${currentUrl}: ${response?.status()}`);
+          await page.close();
+          return;
+        }
+
+        // Récupérer le contenu textuel de la page
+        const pageContent = await page.evaluate(() => {
+          // Fonction pour extraire tout le texte visible
+          function extractVisibleText() {
+            const elements = document.querySelectorAll('body *');
+            let text = '';
+            
+            for (const element of Array.from(elements)) {
+              // Vérifier si l'élément est visible
+              const style = window.getComputedStyle(element);
+              const isVisible = style.display !== 'none' && 
+                               style.visibility !== 'hidden' && 
+                               style.opacity !== '0';
+              
+              if (isVisible && element.textContent?.trim()) {
+                text += element.textContent.trim() + ' ';
+              }
+            }
+            
+            return text;
+          }
+          
+          // Extraire le titre
+          const title = document.title || '';
+          
+          // Extraire la méta description
+          let metaDescription = '';
+          const metaDescElement = document.querySelector('meta[name="description"]');
+          if (metaDescElement && metaDescElement.getAttribute('content')) {
+            metaDescription = metaDescElement.getAttribute('content') || '';
+          }
+          
+          // Extraire le contenu principal
+          const visibleText = extractVisibleText();
+          
+          return {
+            title,
+            metaDescription,
+            visibleText
+          };
+        });
+
+        // Ajouter le contenu de la page
+        allContent += `
+=== Page: ${currentUrl} ===
+Titre: ${pageContent.title}
+Description: ${pageContent.metaDescription}
+Contenu:
+${pageContent.visibleText}
+
+`;
+
+        // Si nous sommes à la profondeur maximale, ne pas récupérer les liens
+        if (currentDepth === depth) {
+          await page.close();
+          return;
+        }
+
+        // Récupérer tous les liens de la page
+        const links = await page.evaluate((baseDomain) => {
+          const anchors = Array.from(document.querySelectorAll('a[href]'));
+          return anchors
+            .map(anchor => anchor.getAttribute('href'))
+            .filter(href => href && 
+                   !href.startsWith('#') && 
+                   !href.startsWith('mailto:') && 
+                   !href.startsWith('tel:') &&
+                   !href.includes('javascript:'))
+            .map(href => {
+              try {
+                // Convertir les chemins relatifs en URLs absolues
+                if (href?.startsWith('/')) {
+                  return `${baseDomain}${href}`;
+                } else if (href && !href.startsWith('http')) {
+                  return `${baseDomain}/${href}`;
+                }
+                return href;
+              } catch (e) {
+                return null;
+              }
+            })
+            .filter(href => href && 
+                   // Rester sur le même domaine
+                   href.startsWith(baseDomain));
+        }, baseDomain);
+
+        await page.close();
+
+        // Crawler les liens trouvés
+        const uniqueLinks = Array.from(new Set(links));
+        
+        // Limiter le nombre de liens à crawler (pour éviter des crawls trop longs)
+        const limitedLinks = uniqueLinks.slice(0, 5);
+        
+        for (const link of limitedLinks) {
+          if (link && !visitedUrls.has(link)) {
+            await crawl(link, currentDepth + 1);
+          }
+        }
+      } catch (error) {
+        console.error(`Erreur lors du crawling de ${currentUrl}:`, error);
+        await page.close();
+      }
+    }
+
+    // Démarrer le crawling à partir de l'URL de base
+    await crawl(url, 0);
+    
+    return allContent;
+  } finally {
+    await browser.close();
   }
 } 

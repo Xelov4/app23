@@ -84,4 +84,54 @@ export async function verifyCredentials(
     console.error('Erreur lors de la vérification des identifiants:', err);
     return { authenticated: false };
   }
+}
+
+// Fonction pour obtenir la session admin
+export async function getAdminSession() {
+  try {
+    // Récupérer le cookie de session
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get('admin_session')?.value;
+    
+    if (!sessionToken) {
+      return null;
+    }
+    
+    // Décoder le token pour récupérer l'ID utilisateur
+    const userId = sessionToken.split('.')[0];
+    
+    if (!userId) {
+      return null;
+    }
+    
+    // Vérifier si l'utilisateur existe et est un admin
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true }
+    });
+    
+    if (!user || user.role !== 'ADMIN') {
+      return null;
+    }
+    
+    return { userId: user.id };
+  } catch (err) {
+    console.error('Erreur lors de la récupération de la session admin:', err);
+    return null;
+  }
+}
+
+// Fonction pour effacer la session admin
+export async function clearAdminSession() {
+  try {
+    const cookieStore = await cookies();
+    
+    // Supprimer le cookie de session
+    cookieStore.delete('admin_session');
+    
+    return true;
+  } catch (err) {
+    console.error('Erreur lors de la suppression de la session:', err);
+    return false;
+  }
 } 

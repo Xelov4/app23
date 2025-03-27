@@ -312,6 +312,15 @@ export default function AdminDashboardPage() {
           </Link>
           
           <Link
+            href="/admin/enrichir"
+            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
+              !sidebarOpen && 'px-2 text-center'
+            }`}
+          >
+            {sidebarOpen ? 'Enrichir les outils' : '🤖'}
+          </Link>
+          
+          <Link
             href="/admin/add/tool"
             className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
               !sidebarOpen && 'px-2 text-center'

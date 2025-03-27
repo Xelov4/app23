@@ -94,9 +94,36 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
     if (data.websiteUrl !== undefined) updateData.websiteUrl = data.websiteUrl;
     if (data.pricingType !== undefined) updateData.pricingType = data.pricingType;
     if (data.pricingDetails !== undefined) updateData.pricingDetails = data.pricingDetails;
+    
+    // Gestion améliorée des features
     if (data.features !== undefined) {
-      updateData.features = Array.isArray(data.features) ? JSON.stringify(data.features) : data.features;
+      // Si c'est déjà une chaîne, la conserver
+      if (typeof data.features === 'string') {
+        // Si la chaîne contient des caractères ';', on la traite comme une liste de fonctionnalités
+        if (data.features.includes(';')) {
+          // Convertir en tableau puis en JSON
+          const featuresArray = data.features.split(';').map(item => item.trim()).filter(item => item);
+          updateData.features = JSON.stringify(featuresArray);
+        } else {
+          // Sinon, on vérifie si c'est déjà un JSON valide
+          try {
+            JSON.parse(data.features);
+            // Si pas d'erreur, c'est un JSON valide, on le garde tel quel
+            updateData.features = data.features;
+          } catch (e) {
+            // Ce n'est pas un JSON valide, on le convertit en tableau d'un seul élément
+            updateData.features = JSON.stringify([data.features]);
+          }
+        }
+      } else if (Array.isArray(data.features)) {
+        // Si c'est un tableau, le convertir en JSON
+        updateData.features = JSON.stringify(data.features);
+      } else {
+        // Fallback: si c'est autre chose, essayez de le transformer en chaîne
+        updateData.features = JSON.stringify([String(data.features)]);
+      }
     }
+    
     if (data.httpCode !== undefined) updateData.httpCode = data.httpCode;
     if (data.twitterUrl !== undefined) updateData.twitterUrl = data.twitterUrl;
     if (data.instagramUrl !== undefined) updateData.instagramUrl = data.instagramUrl;

@@ -44,13 +44,37 @@ async function getToolBySlug(slug: string) {
       ? tool.Review.reduce((sum, review) => sum + review.rating, 0) / tool.Review.length 
       : null;
 
+    // Gestion sécurisée du parsing des features
+    let parsedFeatures = [];
+    if (tool.features) {
+      try {
+        if (typeof tool.features === 'string') {
+          // Tenter de parser le JSON
+          parsedFeatures = JSON.parse(tool.features);
+        } else if (Array.isArray(tool.features)) {
+          // Si c'est déjà un tableau, l'utiliser directement
+          parsedFeatures = tool.features;
+        } else if (typeof tool.features === 'object') {
+          // Si c'est un objet, le conserver tel quel
+          parsedFeatures = tool.features;
+        }
+      } catch (error) {
+        console.error(`Erreur de parsing des features pour ${slug}:`, error);
+        // En cas d'erreur, traiter les features comme une chaîne ou un tableau vide
+        if (typeof tool.features === 'string') {
+          // Si ce n'est pas un JSON valide, essayer de le traiter comme une liste (une fonctionnalité par ligne)
+          parsedFeatures = tool.features.split('\n').filter(line => line.trim() !== '');
+        }
+      }
+    }
+
     return {
       ...tool,
       categories: tool.CategoriesOnTools.map(ct => ct.Category),
       tags: tool.TagsOnTools.map(tt => tt.Tag),
       averageRating,
       reviewCount: tool.Review.length,
-      features: typeof tool.features === 'string' ? JSON.parse(tool.features) : tool.features,
+      features: parsedFeatures,
       socialLinks: {
         twitter: tool.twitterUrl,
         instagram: tool.instagramUrl,
