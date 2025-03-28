@@ -111,3 +111,45 @@ La base de données SQLite est située dans `prisma/dev.db`. Vous pouvez la sauv
 ## Licence
 
 [MIT](https://opensource.org/licenses/MIT)
+
+## Structure des dossiers
+
+Le projet est entièrement contenu dans le répertoire `/root/app23` :
+
+```
+/root/app23/
+│
+├── app/                  # Code source de l'application Next.js
+├── components/           # Composants React partagés
+├── prisma/               # Schéma et migrations Prisma
+├── public/               # Fichiers statiques
+├── nginx-config/         # Configuration Nginx
+├── certs/                # Certificats SSL
+├── logs/                 # Fichiers de logs
+│
+├── ecosystem.config.js   # Configuration PM2
+├── deploy-local.sh       # Script de déploiement complet
+├── restart.sh            # Script de redémarrage rapide
+└── ...
+```
+
+## Scripts
+
+- `./deploy-local.sh` - Script de déploiement complet qui configure tout dans le dossier local
+- `./restart.sh` - Redémarre rapidement les services sans reconstruire l'application
+
+## Déploiement
+
+Pour déployer l'application :
+
+```bash
+cd /root/app23
+./deploy-local.sh
+```
+
+Pour redémarrer rapidement après des modifications mineures :
+
+```bash
+cd /root/app23
+./restart.sh
+```
