@@ -130,6 +130,10 @@ Le projet est entièrement contenu dans le répertoire `/root/app23` :
 ├── ecosystem.config.js   # Configuration PM2
 ├── deploy-local.sh       # Script de déploiement complet
 ├── restart.sh            # Script de redémarrage rapide
+├── renew-certs.sh        # Script de renouvellement des certificats SSL
+├── update-nginx-links.sh # Script de mise à jour des liens symboliques Nginx
+├── setup-ssl.sh          # Script complet pour la configuration SSL
+├── cron-renew-ssl.sh     # Script de renouvellement SSL pour cron
 └── ...
 ```
 
@@ -137,6 +141,9 @@ Le projet est entièrement contenu dans le répertoire `/root/app23` :
 
 - `./deploy-local.sh` - Script de déploiement complet qui configure tout dans le dossier local
 - `./restart.sh` - Redémarre rapidement les services sans reconstruire l'application
+- `./renew-certs.sh` - Renouvelle les certificats SSL et les copie dans le dossier local
+- `./update-nginx-links.sh` - Met à jour les liens symboliques pour la configuration Nginx
+- `./setup-ssl.sh` - Configure complètement SSL avec Let's Encrypt/Certbot
 
 ## Déploiement
 
@@ -152,4 +159,18 @@ Pour redémarrer rapidement après des modifications mineures :
 ```bash
 cd /root/app23
 ./restart.sh
+```
+
+Pour configurer SSL avec Let's Encrypt :
+
+```bash
+cd /root/app23
+./setup-ssl.sh
+```
+
+Pour renouveler manuellement les certificats SSL :
+
+```bash
+cd /root/app23
+./renew-certs.sh
 ```
