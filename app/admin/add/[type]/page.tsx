@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -59,7 +59,7 @@ export default function AddPage() {
   const isScreenshotError = !!screenshotError;
 
   // Chargement des catégories si on ajoute un outil
-  useState(() => {
+  useEffect(() => {
     const fetchCategories = async () => {
       if (type !== 'tools') return;
       
@@ -83,7 +83,7 @@ export default function AddPage() {
     };
     
     fetchCategories();
-  });
+  }, [type]);
 
   // Gestionnaire de changement de champ
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -143,7 +143,7 @@ export default function AddPage() {
       
       // Rediriger après 1.5 seconde
       setTimeout(() => {
-        router.push('/admin');
+        router.push('/admin/dashboard');
       }, 1500);
       
     } catch (err) {
@@ -201,354 +201,333 @@ export default function AddPage() {
                   type === 'categories' ? 'catégorie' : 'tag';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Ajouter un nouveau {typeName}</h1>
-          <Link href="/admin" className="text-blue-600 hover:underline">
-            Retour à l'administration
-          </Link>
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Ajouter un nouveau {typeName}</h1>
+      </div>
+      
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
+          {successMessage}
         </div>
-        
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
-            {successMessage}
-          </div>
-        )}
-        
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2" htmlFor="name">
-                  Nom
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2" htmlFor="slug">
-                  Slug (généré automatiquement)
-                </label>
-                <input
-                  type="text"
-                  id="slug"
-                  name="slug"
-                  value={formData.slug}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg bg-gray-50"
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2" htmlFor="description">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={4}
-                  required
-                />
-              </div>
+      )}
+      
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <div className="mb-4">
+              <label className="block text-gray-700 font-bold mb-2" htmlFor="name">
+                Nom
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-lg"
+                required
+              />
             </div>
             
-            <div>
-              {/* Champs spécifiques aux outils */}
-              {type === 'tools' && (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-bold mb-2" htmlFor="categoryId">
-                      Catégorie
-                    </label>
-                    <select
-                      id="categoryId"
-                      name="categoryId"
-                      value={formData.categoryId}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      required
-                      disabled={isLoadingCategories}
-                    >
-                      {isLoadingCategories ? (
-                        <option>Chargement des catégories...</option>
-                      ) : (
-                        categories.map(cat => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-bold mb-2" htmlFor="websiteUrl">
-                      Site web
-                    </label>
-                    <input
-                      type="url"
-                      id="websiteUrl"
-                      name="websiteUrl"
-                      value={formData.websiteUrl || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-bold mb-2" htmlFor="pricingType">
-                      Type de tarification
-                    </label>
-                    <select
-                      id="pricingType"
-                      name="pricingType"
-                      value={formData.pricingType || 'FREE'}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    >
-                      <option value="FREE">Gratuit</option>
-                      <option value="PAID">Payant</option>
-                      <option value="FREEMIUM">Freemium</option>
-                      <option value="SUBSCRIPTION">Abonnement</option>
-                    </select>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-gray-700 font-bold mb-2" htmlFor="pricingDetails">
-                      Détails de tarification
-                    </label>
-                    <input
-                      type="text"
-                      id="pricingDetails"
-                      name="pricingDetails"
-                      value={formData.pricingDetails || ''}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                </>
-              )}
-              
-              {/* URL de l'image pour tous les types */}
-              <div className="mb-4">
-                <label className="block text-gray-700 font-bold mb-2" htmlFor="imageUrl">
-                  {type === 'tools' ? 'URL du logo' : 'URL de l\'image'}
-                </label>
-                <div className="flex">
+            <div className="mb-4">
+              <label className="block text-gray-700 font-bold mb-2" htmlFor="slug">
+                Slug (généré automatiquement)
+              </label>
+              <input
+                type="text"
+                id="slug"
+                name="slug"
+                value={formData.slug}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-lg"
+                required
+              />
+            </div>
+            
+            {type === 'tools' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-bold mb-2" htmlFor="websiteUrl">
+                    URL du site web
+                  </label>
                   <input
                     type="url"
-                    id={type === 'tools' ? 'logoUrl' : 'imageUrl'}
-                    name={type === 'tools' ? 'logoUrl' : 'imageUrl'}
-                    value={type === 'tools' ? (formData.logoUrl || '') : (formData.imageUrl || '')}
+                    id="websiteUrl"
+                    name="websiteUrl"
+                    value={formData.websiteUrl}
                     onChange={handleChange}
-                    className="flex-1 px-3 py-2 border rounded-l-lg"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    required
                   />
-                  {type === 'tools' && (
+                </div>
+              
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-bold mb-2" htmlFor="categoryId">
+                    Catégorie
+                  </label>
+                  <select
+                    id="categoryId"
+                    name="categoryId"
+                    value={formData.categoryId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    required
+                    disabled={isLoadingCategories}
+                  >
+                    {isLoadingCategories ? (
+                      <option>Chargement des catégories...</option>
+                    ) : (
+                      categories.map(category => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-bold mb-2" htmlFor="pricingType">
+                    Type de tarification
+                  </label>
+                  <select
+                    id="pricingType"
+                    name="pricingType"
+                    value={formData.pricingType}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    required
+                  >
+                    <option value="FREE">Gratuit</option>
+                    <option value="FREEMIUM">Freemium</option>
+                    <option value="PAID">Payant</option>
+                    <option value="SUBSCRIPTION">Abonnement</option>
+                  </select>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-bold mb-2" htmlFor="pricingDetails">
+                    Détails de tarification (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    id="pricingDetails"
+                    name="pricingDetails"
+                    value={formData.pricingDetails || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-bold mb-2">
+                    Réseaux sociaux (optionnel)
+                  </label>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="w-24 text-sm text-gray-600">Twitter</span>
+                      <input
+                        type="url"
+                        name="twitterUrl"
+                        value={formData.twitterUrl || ''}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-1 border rounded-lg"
+                        placeholder="https://twitter.com/..."
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="w-24 text-sm text-gray-600">Instagram</span>
+                      <input
+                        type="url"
+                        name="instagramUrl"
+                        value={formData.instagramUrl || ''}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-1 border rounded-lg"
+                        placeholder="https://instagram.com/..."
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="w-24 text-sm text-gray-600">Facebook</span>
+                      <input
+                        type="url"
+                        name="facebookUrl"
+                        value={formData.facebookUrl || ''}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-1 border rounded-lg"
+                        placeholder="https://facebook.com/..."
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="w-24 text-sm text-gray-600">LinkedIn</span>
+                      <input
+                        type="url"
+                        name="linkedinUrl"
+                        value={formData.linkedinUrl || ''}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-1 border rounded-lg"
+                        placeholder="https://linkedin.com/..."
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="w-24 text-sm text-gray-600">GitHub</span>
+                      <input
+                        type="url"
+                        name="githubUrl"
+                        value={formData.githubUrl || ''}
+                        onChange={handleChange}
+                        className="flex-1 px-3 py-1 border rounded-lg"
+                        placeholder="https://github.com/..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <div>
+            <div className="mb-4">
+              <label className="block text-gray-700 font-bold mb-2" htmlFor="description">
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-lg"
+                rows={6}
+                required
+              />
+            </div>
+            
+            {type === 'tools' && (
+              <div className="mb-4">
+                <label className="block text-gray-700 font-bold mb-2">
+                  Fonctionnalités
+                </label>
+                <div className="flex mb-2">
+                  <input
+                    type="text"
+                    value={feature}
+                    onChange={e => setFeature(e.target.value)}
+                    className="flex-1 px-3 py-2 border rounded-l-lg"
+                    placeholder="Ajouter une fonctionnalité"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFeature}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                <div className="max-h-40 overflow-y-auto">
+                  {formData.features && formData.features.length > 0 ? (
+                    <ul className="space-y-1">
+                      {formData.features.map((feat, index) => (
+                        <li key={index} className="flex justify-between px-3 py-2 bg-gray-50 rounded">
+                          <span>{feat}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFeature(index)}
+                            className="text-red-600"
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500 text-sm">Aucune fonctionnalité ajoutée</p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {type === 'tools' && (
+              <div className="mb-4">
+                <label className="block text-gray-700 font-bold mb-2" htmlFor="logoUrl">
+                  URL du logo
+                </label>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="url"
+                    id="logoUrl"
+                    name="logoUrl"
+                    value={formData.logoUrl || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="URL de l'image"
+                  />
+                  <div className="flex items-center space-x-2">
                     <button
                       type="button"
                       onClick={captureScreenshot}
                       disabled={isCapturingScreenshot || !formData.websiteUrl}
-                      className={`flex items-center bg-blue-600 text-white px-3 py-2 rounded-r-lg hover:bg-blue-700 transition-colors ${
-                        isCapturingScreenshot || !formData.websiteUrl ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      title={!formData.websiteUrl ? "L'URL du site web est requise" : "Capturer une image du site web"}
+                      className={`px-4 py-2 rounded-lg ${isCapturingScreenshot || !formData.websiteUrl ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                     >
-                      <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {isCapturingScreenshot ? 'Capture...' : 'Capturer logo'}
+                      {isCapturingScreenshot ? 'Capture en cours...' : 'Capturer depuis le site web'}
                     </button>
+                    {formData.logoUrl && (
+                      <div className="h-10 w-10 border rounded-lg overflow-hidden">
+                        <img src={formData.logoUrl} alt="Logo" className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                  {isScreenshotError && (
+                    <p className="text-red-600 text-sm">{screenshotError}</p>
                   )}
                 </div>
-                {isScreenshotError && (
-                  <p className="mt-1 text-sm text-red-600">{screenshotError}</p>
-                )}
               </div>
-              
-              {/* Prévisualisation de l'image si URL fournie */}
-              {((type === 'tools' && formData.logoUrl) || (type !== 'tools' && formData.imageUrl)) && (
-                <div className="mb-4">
-                  <p className="text-gray-700 font-bold mb-2">Prévisualisation</p>
-                  <div className="border rounded-lg p-2 bg-gray-50 flex justify-center">
-                    <img 
-                      src={type === 'tools' ? formData.logoUrl : formData.imageUrl} 
-                      alt="Prévisualisation"
-                      className="max-h-40 object-contain"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Fonctionnalités (uniquement pour les outils) */}
-          {type === 'tools' && (
-            <div className="mb-6">
-              <label className="block text-gray-700 font-bold mb-2">
-                Fonctionnalités
-              </label>
-              <div className="flex mb-2">
-                <input
-                  type="text"
-                  value={feature}
-                  onChange={(e) => setFeature(e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-l-lg"
-                  placeholder="Ajouter une fonctionnalité"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddFeature}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700"
-                >
-                  Ajouter
-                </button>
-              </div>
-              
-              <div className="bg-gray-50 p-3 rounded-lg border">
-                {formData.features && formData.features.length > 0 ? (
-                  <ul>
-                    {formData.features.map((feat, index) => (
-                      <li key={index} className="flex justify-between items-center py-1">
-                        <span>{feat}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFeature(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          ❌
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-center py-2">Aucune fonctionnalité ajoutée</p>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Section des réseaux sociaux - seulement pour les outils */}
-          {type === 'tools' && (
-            <div className="mt-8 mb-6 p-6 bg-white rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-4">Réseaux Sociaux</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Ajoutez les liens vers les profils de réseaux sociaux de l'outil (optionnel)
-              </p>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Twitter / X
-                  </label>
-                  <input
-                    type="url"
-                    name="twitterUrl"
-                    value={formData.twitterUrl}
-                    onChange={handleChange}
-                    placeholder="https://twitter.com/username"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Instagram
-                  </label>
-                  <input
-                    type="url"
-                    name="instagramUrl"
-                    value={formData.instagramUrl}
-                    onChange={handleChange}
-                    placeholder="https://instagram.com/username"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Facebook
-                  </label>
-                  <input
-                    type="url"
-                    name="facebookUrl"
-                    value={formData.facebookUrl}
-                    onChange={handleChange}
-                    placeholder="https://facebook.com/pagename"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    LinkedIn
-                  </label>
-                  <input
-                    type="url"
-                    name="linkedinUrl"
-                    value={formData.linkedinUrl}
-                    onChange={handleChange}
-                    placeholder="https://linkedin.com/company/name"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    GitHub
-                  </label>
-                  <input
-                    type="url"
-                    name="githubUrl"
-                    value={formData.githubUrl}
-                    onChange={handleChange}
-                    placeholder="https://github.com/organization"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex justify-between items-center mt-8">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className={`bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 ${
-                isSaving ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSaving ? 'Création en cours...' : 'Créer'}
-            </button>
+            )}
             
-            <Link
-              href="/admin"
-              className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600"
-            >
-              Annuler
-            </Link>
+            {type === 'categories' && (
+              <div className="mb-4">
+                <label className="block text-gray-700 font-bold mb-2" htmlFor="imageUrl">
+                  URL de l'image (optionnel)
+                </label>
+                <input
+                  type="url"
+                  id="imageUrl"
+                  name="imageUrl"
+                  value={formData.imageUrl || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+            )}
           </div>
-        </form>
-      </div>
+        </div>
+        
+        <div className="flex justify-end space-x-4">
+          <Link
+            href="/admin/dashboard"
+            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Annuler
+          </Link>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className={`px-6 py-2 bg-blue-600 text-white rounded-lg ${isSaving ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+          >
+            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 } 

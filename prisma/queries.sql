@@ -1,0 +1,1 @@
+SELECT * FROM Category; SELECT * FROM Tag; SELECT * FROM Tool;

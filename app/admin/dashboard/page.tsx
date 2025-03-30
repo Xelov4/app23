@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 // Types pour les données
@@ -41,7 +40,6 @@ type SortDirection = 'asc' | 'desc';
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState('outils');
-  const router = useRouter();
   
   // Données depuis l'API
   const [tools, setTools] = useState<Tool[]>([]);
@@ -49,32 +47,12 @@ export default function AdminDashboardPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // État pour le tri et la sélection
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [confirmAction, setConfirmAction] = useState(false);
-
-  // Vérifier si l'utilisateur est connecté
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/api/admin/session');
-        const data = await response.json();
-        
-        if (!data.authenticated) {
-          router.push('/admin');
-        }
-      } catch (err) {
-        console.error('Erreur lors de la vérification de session:', err);
-        router.push('/admin');
-      }
-    };
-    
-    checkSession();
-  }, [router]);
 
   // Fonction pour charger les données
   const fetchData = async (activeTab: string) => {
@@ -254,507 +232,415 @@ export default function AdminDashboardPage() {
         compareB = b.name.toLowerCase();
     }
     
-    // Comparer les valeurs selon la direction
-    if (compareA < compareB) return sortDirection === 'asc' ? -1 : 1;
-    if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
+    // Comparer selon la direction
+    if (sortDirection === 'asc') {
+      return compareA > compareB ? 1 : compareA < compareB ? -1 : 0;
+    } else {
+      return compareA < compareB ? 1 : compareA > compareB ? -1 : 0;
+    }
   });
 
-  // Nombre d'outils sélectionnés
-  const selectedToolsCount = tools.filter(tool => tool.selected).length;
-
-  // Gestion de la déconnexion
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/admin/logout', {
-        method: 'POST',
-      });
-      
-      if (response.ok) {
-        router.push('/admin');
-      }
-    } catch (err) {
-      console.error('Erreur lors de la déconnexion:', err);
-    }
-  };
-
-  // Rendu de l'interface d'administration
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className={`bg-white shadow-md h-screen p-4 fixed top-0 left-0 bottom-0 transition-all ${sidebarOpen ? 'w-64' : 'w-16'}`}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className={`text-xl font-bold ${!sidebarOpen && 'hidden'}`}>Administration</h2>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            {sidebarOpen ? '◀' : '▶'}
-          </button>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Tableau de bord d'administration</h1>
+        <div className="flex gap-2">
+          <Link href="/admin/bulk" className="btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Traitement par lots
+          </Link>
+          <Link href="/admin/add/tools" className="btn bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+            Ajouter un outil
+          </Link>
         </div>
-        <nav>
-          <Link
-            href="/admin/dashboard"
-            className={`block py-2 px-4 mb-1 rounded bg-blue-100 text-blue-800 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Tableau de bord' : '📊'}
-          </Link>
-          
-          <Link
-            href="/admin/crawl"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Vérificateur d\'URLs' : '🔗'}
-          </Link>
-          
-          <Link
-            href="/admin/enrichir"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Enrichir les outils' : '🤖'}
-          </Link>
-          
-          <Link
-            href="/admin/add/tool"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Ajouter un outil' : '➕'}
-          </Link>
-          <Link
-            href="/admin/add/category"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Ajouter une catégorie' : '🗂️'}
-          </Link>
-          <Link
-            href="/admin/add/tag"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Ajouter un tag' : '🏷️'}
-          </Link>
-          <Link
-            href="/admin/bulk"
-            className={`block py-2 px-4 mb-1 rounded hover:bg-gray-100 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Import en masse' : '📥'}
-          </Link>
-          
-          <button
-            onClick={handleLogout}
-            className={`block w-full text-left py-2 px-4 mt-4 rounded hover:bg-red-100 hover:text-red-800 ${
-              !sidebarOpen && 'px-2 text-center'
-            }`}
-          >
-            {sidebarOpen ? 'Déconnexion' : '🚪'}
-          </button>
-        </nav>
       </div>
       
-      {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <header className="bg-white shadow">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Administration Video-IA.net</h1>
-            </div>
-          </div>
-        </header>
-
-        <div className="container mx-auto px-4 py-8">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            {/* Affichage du message d'erreur */}
-            {error && (
-              <div className="p-4 mb-4 bg-red-100 text-red-700 rounded">
-                Erreur: {error}
-              </div>
-            )}
-
-            {/* Affichage du chargement */}
-            {isLoading && (
-              <div className="p-6 text-center">
-                <p className="text-gray-600">Chargement des données...</p>
-              </div>
-            )}
-
-            {/* Onglet Outils */}
-            {activeTab === 'outils' && !isLoading && (
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Gestion des outils</h2>
-                  <Link 
-                    href="/admin/add/tools" 
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                  >
-                    + Ajouter un outil
-                  </Link>
-                </div>
-
-                {/* Actions en masse pour les outils */}
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-sm text-gray-600">
-                    {selectedToolsCount > 0 ? `${selectedToolsCount} outil(s) sélectionné(s)` : 'Aucun outil sélectionné'}
-                  </div>
-                  
-                  <select
-                    value={selectedAction}
-                    onChange={e => setSelectedAction(e.target.value)}
-                    className="border rounded px-2 py-1 text-sm"
-                    disabled={selectedToolsCount === 0}
-                  >
-                    <option value="">-- Choisir une action --</option>
-                    <option value="activate">Activer</option>
-                    <option value="deactivate">Désactiver</option>
-                    <option value="delete">Supprimer</option>
-                  </select>
-                  
-                  <button
-                    onClick={() => selectedAction ? setConfirmAction(true) : null}
-                    className={`bg-blue-600 text-white px-3 py-1 rounded text-sm ${
-                      !selectedAction || selectedToolsCount === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
-                    }`}
-                    disabled={!selectedAction || selectedToolsCount === 0}
-                  >
-                    Appliquer
-                  </button>
-                </div>
-
-                {/* Confirmation pour l'action en masse */}
-                {confirmAction && (
-                  <div className="mb-4 p-4 border border-yellow-400 bg-yellow-50 rounded-lg">
-                    <p className="text-sm mb-2">
-                      {selectedAction === 'delete' 
-                        ? `Êtes-vous sûr de vouloir supprimer ${selectedToolsCount} outil(s) ?` 
-                        : selectedAction === 'activate'
-                        ? `Êtes-vous sûr de vouloir activer ${selectedToolsCount} outil(s) ?`
-                        : `Êtes-vous sûr de vouloir désactiver ${selectedToolsCount} outil(s) ?`
-                      }
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={executeAction}
-                        className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                      >
-                        Confirmer
-                      </button>
-                      <button
-                        onClick={() => setConfirmAction(false)}
-                        className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-3 text-left">
-                          <input
-                            type="checkbox"
-                            checked={tools.length > 0 && tools.every(tool => tool.selected)}
-                            onChange={toggleSelectAll}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        </th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('name')}
-                        >
-                          Nom
-                          {sortField === 'name' && (
-                            <span className="ml-1">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('category')}
-                        >
-                          Catégorie
-                          {sortField === 'category' && (
-                            <span className="ml-1">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('pricingType')}
-                        >
-                          Tarification
-                          {sortField === 'pricingType' && (
-                            <span className="ml-1">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('httpCode')}
-                        >
-                          HTTP
-                          {sortField === 'httpCode' && (
-                            <span className="ml-1">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('isActive')}
-                        >
-                          Statut
-                          {sortField === 'isActive' && (
-                            <span className="ml-1">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {sortedTools.length > 0 ? (
-                        sortedTools.map(tool => (
-                          <tr key={tool.id} className={tool.selected ? 'bg-blue-50' : ''}>
-                            <td className="px-3 py-4 whitespace-nowrap">
-                              <input
-                                type="checkbox"
-                                checked={tool.selected || false}
-                                onChange={() => toggleSelectTool(tool.id)}
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{tool.name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">{tool.category}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                tool.pricingType === 'FREE' ? 'bg-green-100 text-green-800' :
-                                tool.pricingType === 'PAID' ? 'bg-red-100 text-red-800' : 
-                                'bg-blue-100 text-blue-800'
-                              }`}>
-                                {tool.pricingType === 'FREE' ? 'Gratuit' : 
-                                tool.pricingType === 'PAID' ? 'Payant' : 
-                                tool.pricingType === 'FREEMIUM' ? 'Freemium' : 
-                                'Abonnement'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {tool.httpCode ? (
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  tool.httpCode === 200 ? 'bg-green-100 text-green-800' :
-                                  tool.httpCode >= 300 && tool.httpCode < 400 ? 'bg-blue-100 text-blue-800' :
-                                  tool.httpCode >= 400 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {tool.httpCode}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full mr-2 ${
-                                  tool.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {tool.isActive ? 'ON' : 'OFF'}
-                                </span>
-                                {/* Toggle Switch */}
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={tool.isActive}
-                                    onChange={() => toggleToolStatus(tool.slug, tool.isActive)}
-                                  />
-                                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                </label>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <Link 
-                                href={`/admin/modify/tools/${tool.slug}`}
-                                className="text-blue-600 hover:text-blue-900 text-xl"
-                                title="Modifier"
-                              >
-                                ✏️
-                              </Link>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                            Aucun outil trouvé
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Onglet Catégories */}
-            {activeTab === 'categories' && !isLoading && (
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Gestion des catégories</h2>
-                  <Link 
-                    href="/admin/add/categories" 
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                  >
-                    + Ajouter une catégorie
-                  </Link>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nom
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Slug
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nb. Outils
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {categories.length > 0 ? (
-                        categories.map(category => (
-                          <tr key={category.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{category.name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">{category.slug}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">{category.toolCount}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <Link 
-                                href={`/admin/modify/categories/${category.slug}`}
-                                className="text-blue-600 hover:text-blue-900 text-xl"
-                                title="Modifier"
-                              >
-                                ✏️
-                              </Link>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-                            Aucune catégorie trouvée
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Onglet Tags */}
-            {activeTab === 'tags' && !isLoading && (
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Gestion des tags</h2>
-                  <Link 
-                    href="/admin/add/tags" 
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                  >
-                    + Ajouter un tag
-                  </Link>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nom
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Slug
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nb. Outils
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {tags.length > 0 ? (
-                        tags.map(tag => (
-                          <tr key={tag.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{tag.name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">{tag.slug}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">{tag.toolCount}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <Link 
-                                href={`/admin/modify/tags/${tag.slug}`}
-                                className="text-blue-600 hover:text-blue-900 text-xl"
-                                title="Modifier"
-                              >
-                                ✏️
-                              </Link>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
-                            Aucun tag trouvé
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+      
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="mb-6 border-b">
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setActiveTab('outils')}
+              className={`pb-2 px-1 ${activeTab === 'outils' ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Outils
+            </button>
+            <button
+              onClick={() => setActiveTab('categories')}
+              className={`pb-2 px-1 ${activeTab === 'categories' ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Catégories
+            </button>
+            <button
+              onClick={() => setActiveTab('tags')}
+              className={`pb-2 px-1 ${activeTab === 'tags' ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Tags
+            </button>
           </div>
         </div>
+        
+        {isLoading ? (
+          <div className="text-center py-10">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+            <p className="mt-2 text-gray-500">Chargement en cours...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'outils' && (
+              <div>
+                {tools.length > 0 ? (
+                  <>
+                    <div className="flex justify-between mb-4">
+                      <div className="flex items-center">
+                        <select
+                          value={selectedAction}
+                          onChange={(e) => setSelectedAction(e.target.value)}
+                          className="border rounded p-2 mr-2"
+                        >
+                          <option value="">Action groupée...</option>
+                          <option value="activate">Activer</option>
+                          <option value="deactivate">Désactiver</option>
+                          <option value="delete">Supprimer</option>
+                        </select>
+                        <button
+                          onClick={() => setConfirmAction(true)}
+                          disabled={!selectedAction}
+                          className={`px-3 py-1 rounded ${!selectedAction ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                        >
+                          Appliquer
+                        </button>
+                        
+                        {confirmAction && (
+                          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                            <div className="bg-white p-6 rounded-lg max-w-md w-full">
+                              <h3 className="text-lg font-medium mb-4">Confirmation</h3>
+                              <p className="mb-4">
+                                Êtes-vous sûr de vouloir {selectedAction === 'delete' ? 'supprimer' : selectedAction === 'activate' ? 'activer' : 'désactiver'} les {tools.filter(t => t.selected).length} outils sélectionnés ?
+                              </p>
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => setConfirmAction(false)}
+                                  className="px-4 py-2 border rounded hover:bg-gray-100"
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  onClick={executeAction}
+                                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+                                >
+                                  Confirmer
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-gray-500">{tools.length} outils</span>
+                      </div>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <input
+                                type="checkbox"
+                                onChange={toggleSelectAll}
+                                checked={tools.length > 0 && tools.every(t => t.selected)}
+                                className="h-4 w-4 border-gray-300 rounded"
+                              />
+                            </th>
+                            <th 
+                              scope="col" 
+                              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                              onClick={() => handleSort('name')}
+                            >
+                              Nom {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              scope="col" 
+                              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                              onClick={() => handleSort('category')}
+                            >
+                              Catégorie {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              scope="col" 
+                              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                              onClick={() => handleSort('pricingType')}
+                            >
+                              Prix {sortField === 'pricingType' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              scope="col" 
+                              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                              onClick={() => handleSort('httpCode')}
+                            >
+                              État {sortField === 'httpCode' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th 
+                              scope="col" 
+                              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                              onClick={() => handleSort('isActive')}
+                            >
+                              Status {sortField === 'isActive' && (sortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {sortedTools.map((tool) => (
+                            <tr key={tool.id} className="hover:bg-gray-50">
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <input
+                                  type="checkbox"
+                                  checked={tool.selected || false}
+                                  onChange={() => toggleSelectTool(tool.id)}
+                                  className="h-4 w-4 border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="h-8 w-8 flex-shrink-0 mr-3 bg-gray-100 rounded-full overflow-hidden">
+                                    {tool.logoUrl ? (
+                                      <img src={tool.logoUrl} alt={tool.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center bg-gray-300 text-gray-500">
+                                        {tool.name.charAt(0)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <a 
+                                      href={`/tools/${tool.slug}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-medium text-gray-900 hover:text-blue-600"
+                                    >
+                                      {tool.name}
+                                    </a>
+                                    <div className="text-xs text-gray-500 truncate max-w-xs">
+                                      {tool.description.substring(0, 60)}...
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-900">{tool.category || 'Non classé'}</span>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  tool.pricingType === 'FREE' ? 'bg-green-100 text-green-800' :
+                                  tool.pricingType === 'FREEMIUM' ? 'bg-blue-100 text-blue-800' :
+                                  tool.pricingType === 'PAID' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {tool.pricingType}
+                                </span>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  !tool.httpCode ? 'bg-gray-100 text-gray-800' :
+                                  tool.httpCode >= 200 && tool.httpCode < 300 ? 'bg-green-100 text-green-800' :
+                                  tool.httpCode >= 300 && tool.httpCode < 400 ? 'bg-yellow-100 text-yellow-800' :
+                                  tool.httpCode >= 400 ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {tool.httpCode || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap">
+                                <button
+                                  onClick={() => toggleToolStatus(tool.slug, tool.isActive)}
+                                  className={`px-2 py-1 text-xs rounded-full ${
+                                    tool.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {tool.isActive ? 'Actif' : 'Inactif'}
+                                </button>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex space-x-2 justify-end">
+                                  <Link
+                                    href={`/admin/modify/tools/${tool.slug}`}
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    Modifier
+                                  </Link>
+                                  <Link
+                                    href={`/admin/enrichir/${tool.slug}`}
+                                    className="text-green-600 hover:text-green-900"
+                                  >
+                                    Enrichir
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center py-8 text-gray-500">Aucun outil trouvé.</p>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'categories' && (
+              <div>
+                {categories.length > 0 ? (
+                  <>
+                    <div className="flex justify-between mb-4">
+                      <Link href="/admin/add/categories" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                        Ajouter une catégorie
+                      </Link>
+                      <div>
+                        <span className="text-gray-500">{categories.length} catégories</span>
+                      </div>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Nom
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Description
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Outils
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {categories.map((category) => (
+                            <tr key={category.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="h-8 w-8 flex-shrink-0 mr-3 bg-gray-100 rounded-full overflow-hidden">
+                                    {category.imageUrl ? (
+                                      <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center bg-gray-300 text-gray-500">
+                                        {category.name.charAt(0)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <a 
+                                      href={`/categories/${category.slug}`} 
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-medium text-gray-900 hover:text-blue-600"
+                                    >
+                                      {category.name}
+                                    </a>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-900 truncate max-w-xs">
+                                  {category.description.substring(0, 100)}...
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-900">{category.toolCount}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <Link
+                                  href={`/admin/modify/categories/${category.slug}`}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  Modifier
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center py-8 text-gray-500">Aucune catégorie trouvée.</p>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'tags' && (
+              <div>
+                {tags.length > 0 ? (
+                  <>
+                    <div className="flex justify-between mb-4">
+                      <Link href="/admin/add/tags" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                        Ajouter un tag
+                      </Link>
+                      <div>
+                        <span className="text-gray-500">{tags.length} tags</span>
+                      </div>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Nom
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Outils
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {tags.map((tag) => (
+                            <tr key={tag.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  #{tag.name}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-900">{tag.toolCount}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <Link
+                                  href={`/admin/modify/tags/${tag.slug}`}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  Modifier
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center py-8 text-gray-500">Aucun tag trouvé.</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
