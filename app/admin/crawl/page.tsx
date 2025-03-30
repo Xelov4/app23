@@ -14,6 +14,7 @@ interface Tool {
   isActive: boolean;
   status?: 'idle' | 'pending' | 'success' | 'error';
   toggleStatus?: 'idle' | 'pending' | 'success' | 'error';
+  pricingDetails?: string;
 }
 
 interface CrawlResult {
@@ -29,6 +30,7 @@ export default function WebsiteCrawlerPage() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCrawling, setIsCrawling] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -39,6 +41,8 @@ export default function WebsiteCrawlerPage() {
   const [selectAll, setSelectAll] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const [totalToProcess, setTotalToProcess] = useState(0);
+  const [dbUpdated, setDbUpdated] = useState(false);
+  const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
 
   // Vérifier si l'utilisateur est connecté
   useEffect(() => {
@@ -68,7 +72,25 @@ export default function WebsiteCrawlerPage() {
       const response = await fetch('/api/tools');
       if (!response.ok) throw new Error('Erreur lors du chargement des outils');
       const data = await response.json();
-      setTools(data.map((tool: Tool) => ({ ...tool, status: 'idle', toggleStatus: 'idle' })));
+      
+      // Transformer les données pour extraire les informations HTTP
+      const formattedTools = data.map((tool: Tool) => {
+        let httpChain = tool.httpChain;
+        
+        // Si httpChain n'existe pas mais que pricingDetails contient des infos HTTP, les extraire
+        if (!httpChain && tool.pricingDetails && tool.pricingDetails.startsWith('HTTP Chain:')) {
+          httpChain = tool.pricingDetails.replace('HTTP Chain:', '').trim();
+        }
+        
+        return {
+          ...tool,
+          httpChain,
+          status: 'idle',
+          toggleStatus: 'idle'
+        };
+      });
+      
+      setTools(formattedTools);
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur de récupération des outils:', err);
@@ -214,6 +236,11 @@ export default function WebsiteCrawlerPage() {
       
       const result = await response.json();
       
+      // Vérifier si les données ont été mises à jour dans la base de données
+      if (result.dbUpdated) {
+        setDbUpdated(true);
+      }
+      
       // Mettre à jour les outils avec les nouveaux codes HTTP
       setTools(prevTools => {
         const updatedTools = [...prevTools];
@@ -221,10 +248,13 @@ export default function WebsiteCrawlerPage() {
         result.results.forEach((crawlResult: CrawlResult) => {
           const index = updatedTools.findIndex(tool => tool.id === crawlResult.id);
           if (index !== -1) {
+            // Le résultat contient toutes les informations HTTP à jour
             updatedTools[index] = {
               ...updatedTools[index],
               httpCode: crawlResult.httpCode,
               httpChain: crawlResult.httpChain,
+              // Stocker également dans pricingDetails pour conserver la cohérence
+              pricingDetails: `HTTP Chain: ${crawlResult.httpChain}`,
               websiteUrl: crawlResult.finalUrl || updatedTools[index].websiteUrl,
               status: crawlResult.error ? 'error' : 'success'
             };
@@ -263,9 +293,11 @@ export default function WebsiteCrawlerPage() {
     }
 
     setIsCrawling(true);
+    setIsCompleted(false);
     setCrawlProgress(0);
     setProcessedCount(0);
     setError(null);
+    setDbUpdated(false);
 
     try {
       // Préparer les outils à crawler
@@ -290,6 +322,7 @@ export default function WebsiteCrawlerPage() {
       }
       
       setCrawlProgress(100);
+      setIsCompleted(true);
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur lors du crawl:', err);
@@ -346,6 +379,85 @@ export default function WebsiteCrawlerPage() {
     if (toggleStatus === 'pending') return 'animate-pulse opacity-50 cursor-wait';
     if (toggleStatus === 'error') return 'opacity-50';
     return '';
+  };
+
+  // Fonction pour afficher les détails d'un outil
+  const showToolDetails = (toolId: string) => {
+    if (selectedToolId === toolId) {
+      setSelectedToolId(null); // Fermer le détail si déjà ouvert
+    } else {
+      setSelectedToolId(toolId); // Ouvrir le détail
+    }
+  };
+
+  // Ajouter un composant pour afficher les détails HTTP complets
+  const HttpDetailCard = ({ tool }: { tool: any }) => {
+    return (
+      <div className="p-4 mb-4 bg-white border rounded-md shadow-sm">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-semibold">{tool.name}</h3>
+          <button 
+            onClick={() => setSelectedToolId(null)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Fermer
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">URL du site</h4>
+            <a 
+              href={tool.websiteUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline break-all"
+            >
+              {tool.websiteUrl}
+            </a>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Code HTTP</h4>
+            <span className={`px-2 py-1 rounded-full text-sm font-medium ${getHttpStatusClass(tool.httpCode, tool.httpChain)}`}>
+              {tool.httpCode || 'Non disponible'}
+            </span>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Chaîne de redirection</h4>
+            <div className="bg-gray-50 p-3 rounded font-mono text-sm overflow-x-auto">
+              {tool.httpChain || (tool.pricingDetails?.startsWith('HTTP Chain:') 
+                ? tool.pricingDetails.replace('HTTP Chain:', '').trim() 
+                : 'Non disponible')}
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Statut de mise à jour</h4>
+            <div className="flex items-center">
+              {tool.status === 'success' ? (
+                <span className="text-green-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Mis à jour avec succès
+                </span>
+              ) : tool.status === 'error' ? (
+                <span className="text-red-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Erreur lors de la mise à jour
+                </span>
+              ) : (
+                <span className="text-gray-500">Non traité</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -533,14 +645,28 @@ export default function WebsiteCrawlerPage() {
                         </a>
                       </td>
                       <td className="py-2 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHttpStatusClass(tool.httpCode, tool.httpChain)}`}>
+                        <span 
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getHttpStatusClass(tool.httpCode, tool.httpChain)} cursor-pointer hover:opacity-80`}
+                          onClick={() => showToolDetails(tool.id)}
+                        >
                           {getHttpStatusText(tool.httpCode, tool.httpChain)}
                         </span>
+                        {tool.status === 'success' && (
+                          <span className="ml-1 text-xs text-green-600">
+                            ✓ Mis à jour
+                          </span>
+                        )}
                       </td>
                       <td className="py-2 px-4 text-xs">
-                        {tool.status === 'pending' ? 
-                          <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full">En cours...</span> :
-                          (tool.httpChain || '-')}
+                        {tool.status === 'pending' ? (
+                          <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full">En cours...</span>
+                        ) : (
+                          <span className="font-mono">
+                            {tool.httpChain || (tool.pricingDetails?.startsWith('HTTP Chain:') 
+                              ? tool.pricingDetails.replace('HTTP Chain:', '').trim() 
+                              : '-')}
+                          </span>
+                        )}
                       </td>
                       <td className="py-2 px-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -573,6 +699,29 @@ export default function WebsiteCrawlerPage() {
               </table>
             )}
           </div>
+          
+          {!isCrawling && isCompleted && dbUpdated && (
+            <div className="mt-4 space-y-3">
+              <div className="p-3 bg-green-100 text-green-800 rounded-md">
+                ✓ Les statuts HTTP ont été automatiquement mis à jour dans la base de données. 
+                Ces informations sont désormais disponibles pour tous les outils.
+              </div>
+              <div className="p-3 bg-blue-100 text-blue-800 rounded-md">
+                <h3 className="font-medium">Résumé des modifications:</h3>
+                <ul className="mt-2 space-y-1 text-sm">
+                  <li>• Codes HTTP mis à jour: {tools.filter(t => t.status === 'success').length}</li>
+                  <li>• URLs avec erreurs: {tools.filter(t => t.status === 'error').length}</li>
+                  <li>• Total des outils traités: {processedCount}</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          {selectedToolId && (
+            <div className="mt-6">
+              <HttpDetailCard tool={tools.find(t => t.id === selectedToolId)!} />
+            </div>
+          )}
         </div>
       </div>
     </div>

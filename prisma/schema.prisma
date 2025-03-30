@@ -30,6 +30,7 @@ model Tool {
   rating            Float?
   reviewCount       Int?
   httpCode          Int?
+  httpChain         String?
   twitterUrl        String?
   instagramUrl      String?
   facebookUrl       String?

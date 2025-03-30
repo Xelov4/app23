@@ -15,7 +15,17 @@ interface Tool {
   categoryId: string;
   websiteUrl: string;
   isActive: boolean;
-  httpCode?: number;
+  httpCode: number | null;
+  pricingDetails: string | null;
+  categories: {
+    category: {
+      id: string;
+      name: string;
+      slug: string;
+    }
+  }[];
+  averageRating: number | null;
+  reviewCount: number;
   selected?: boolean; // Pour la sélection multiple
 }
 
@@ -240,6 +250,40 @@ export default function AdminDashboardPage() {
     }
   });
 
+  // Ajouter une fonction pour obtenir la classe CSS en fonction du code HTTP
+  const getHttpStatusClass = (httpCode?: number | null, httpChain?: string | null) => {
+    if (!httpCode) return 'bg-gray-200 text-gray-800';
+    
+    if (httpCode >= 200 && httpCode < 300) {
+      return 'bg-green-100 text-green-800';
+    } else if (httpCode >= 300 && httpCode < 400) {
+      return 'bg-blue-100 text-blue-800';
+    } else if (httpCode >= 400 && httpCode < 500) {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (httpCode >= 500) {
+      return 'bg-red-100 text-red-800';
+    }
+    
+    return 'bg-gray-200 text-gray-800';
+  };
+
+  // Ajouter une fonction pour obtenir le texte du statut HTTP
+  const getHttpStatusText = (httpCode?: number | null, httpChain?: string | null) => {
+    if (!httpCode) return 'Non testé';
+    
+    if (httpCode >= 200 && httpCode < 300) {
+      return `${httpCode} OK`;
+    } else if (httpCode >= 300 && httpCode < 400) {
+      return `${httpCode} Redirection`;
+    } else if (httpCode >= 400 && httpCode < 500) {
+      return `${httpCode} Erreur client`;
+    } else if (httpCode >= 500) {
+      return `${httpCode} Erreur serveur`;
+    }
+    
+    return `${httpCode}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -448,14 +492,8 @@ export default function AdminDashboardPage() {
                                 </span>
                               </td>
                               <td className="px-3 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  !tool.httpCode ? 'bg-gray-100 text-gray-800' :
-                                  tool.httpCode >= 200 && tool.httpCode < 300 ? 'bg-green-100 text-green-800' :
-                                  tool.httpCode >= 300 && tool.httpCode < 400 ? 'bg-yellow-100 text-yellow-800' :
-                                  tool.httpCode >= 400 ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {tool.httpCode || 'N/A'}
+                                <span className={`px-2 py-1 text-xs rounded-full ${getHttpStatusClass(tool.httpCode, tool.pricingDetails?.startsWith('HTTP Chain:') ? tool.pricingDetails : null)}`}>
+                                  {getHttpStatusText(tool.httpCode, tool.pricingDetails?.startsWith('HTTP Chain:') ? tool.pricingDetails : null)}
                                 </span>
                               </td>
                               <td className="px-3 py-4 whitespace-nowrap">

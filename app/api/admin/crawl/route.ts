@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
+import { db } from '@/lib/db';
 
 const dnsLookup = promisify(dns.lookup);
 const mkdir = promisify(fs.mkdir);
@@ -160,7 +161,13 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      return NextResponse.json({ results });
+      // Mettre à jour les statuts HTTP dans la base de données
+      await updateToolsHttpStatus(results);
+      
+      return NextResponse.json({ 
+        results,
+        dbUpdated: true
+      });
     }
 
     // Cas simple avec une URL
@@ -715,5 +722,47 @@ ${pageContent.visibleText.substring(0, 200)}...
     };
   } finally {
     await browser.close();
+  }
+}
+
+// Ajouter cette fonction pour mettre à jour les statuts HTTP en base de données
+async function updateToolsHttpStatus(results: any[]) {
+  console.log('Mise à jour des statuts HTTP dans la base de données...');
+  
+  try {
+    // Traiter les résultats par lots pour éviter de surcharger la base de données
+    const batchSize = 10;
+    for (let i = 0; i < results.length; i += batchSize) {
+      const batch = results.slice(i, i + batchSize);
+      
+      // Mise à jour en parallèle avec Promise.all
+      await Promise.all(batch.map(async (result) => {
+        try {
+          // Stocker la chaîne HTTP dans le pricingDetails comme solution temporaire
+          // ou créer une note dans les logs
+          console.log(`Tool ${result.id}: HTTP ${result.httpCode}, Chain: ${result.httpChain}`);
+          
+          // Mettre à jour uniquement le httpCode dans la base de données (qui existe déjà)
+          await db.tool.update({
+            where: { id: result.id },
+            data: {
+              httpCode: result.httpCode,
+              // Stockage temporaire de httpChain dans pricingDetails en préfixant avec "HTTP Chain: "
+              // pour identifier facilement cette information
+              pricingDetails: `HTTP Chain: ${result.httpChain}`
+            }
+          });
+          console.log(`Mise à jour réussie pour l'outil ${result.id}: HTTP ${result.httpCode}`);
+        } catch (error) {
+          console.error(`Erreur lors de la mise à jour de l'outil ${result.id}:`, error);
+        }
+      }));
+    }
+    
+    console.log(`Statuts HTTP mis à jour pour ${results.length} outils`);
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des statuts HTTP:', error);
+    return false;
   }
 } 
