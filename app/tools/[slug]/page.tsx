@@ -1,682 +1,299 @@
-import Link from "next/link";
+import { Metadata } from "next";
 import Image from "next/image";
-import { db } from "@/lib/db";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ToolCard } from "@/components/ui/tool-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  formatPricingType, 
   getImageWithFallback,
-  getCategoryColor,
-  formatDate
+  formatDate,
+  truncateText,
+  formatPricingType,
+  getCategoryEmoji
 } from "@/lib/design-system/primitives";
-import { Prisma } from "@prisma/client";
+import { db } from "@/lib/db";
+import { ChevronLeft, Globe, ExternalLink, Tag, Clock, Calendar, Star, Info, CheckCircle, MessageSquare, ArrowRight } from "lucide-react";
 
-export const revalidate = 3600; // Revalidate the data at most every hour
+// Revalider toutes les heures
+export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
+// Types
+type ToolPageProps = {
+  params: {
+    slug: string;
+  };
+};
+
+// Fonction pour récupérer un outil par son slug
 async function getToolBySlug(slug: string) {
-  try {
-    const tool = await db.tool.findUnique({
-      where: { 
-        slug,
-        isActive: true  // Ne récupérer que les outils actifs pour l'affichage public
+  const tool = await db.tool.findUnique({
+    where: {
+      slug: slug,
+      isActive: true,
+    },
+    include: {
+      CategoriesOnTools: {
+        include: {
+          Category: true,
+        },
       },
-      include: {
-        CategoriesOnTools: {
-          include: {
-            Category: true
-          }
+      TagsOnTools: {
+        include: {
+          Tag: true,
         },
-        TagsOnTools: {
-          include: {
-            Tag: true
-          }
+      },
+      Review: {
+        orderBy: {
+          createdAt: "desc",
         },
-        Review: true,
-        UseCasesOnTools: {
-          include: {
-            UseCase: true
-          }
-        }
-      }
-    });
+        take: 3,
+      },
+      _count: {
+        select: {
+          Review: true,
+        },
+      },
+      UseCasesOnTools: true,
+    },
+  });
 
-    if (!tool) {
-      return null;
-    }
-
-    // Calculer la note moyenne
-    const averageRating = tool.Review.length 
-      ? tool.Review.reduce((sum: number, review: any) => sum + review.rating, 0) / tool.Review.length 
-      : null;
-
-    // Gestion sécurisée du parsing des features
-    let parsedFeatures = [];
-    if (tool.features) {
-      try {
-        if (typeof tool.features === 'string') {
-          // Tenter de parser le JSON
-          parsedFeatures = JSON.parse(tool.features);
-        } else if (Array.isArray(tool.features)) {
-          // Si c'est déjà un tableau, l'utiliser directement
-          parsedFeatures = tool.features;
-        } else if (typeof tool.features === 'object') {
-          // Si c'est un objet, le conserver tel quel
-          parsedFeatures = tool.features;
-        }
-      } catch (error) {
-        console.error(`Erreur de parsing des features pour ${slug}:`, error);
-        // En cas d'erreur, traiter les features comme une chaîne ou un tableau vide
-        if (typeof tool.features === 'string') {
-          // Si ce n'est pas un JSON valide, essayer de le traiter comme une liste (une fonctionnalité par ligne)
-          parsedFeatures = tool.features.split('\n').filter(line => line.trim() !== '');
-        }
-      }
-    }
-
-    // Formatage des dates en format lisible
-    const createdAtFormatted = formatDate(tool.createdAt);
-    const updatedAtFormatted = formatDate(tool.updatedAt);
-
-    // Vérification du statut HTTP pour info supplémentaire
-    const httpStatus = tool.httpCode 
-      ? tool.httpCode === 200 
-        ? { text: "Site accessible", status: "success" }
-        : { text: `Statut HTTP: ${tool.httpCode}`, status: "warning" }
-      : { text: "Statut inconnu", status: "neutral" };
-
-    // Construction des liens sociaux à partir des URL individuelles
-    const socialLinks = {
-      twitter: tool.twitterUrl || null,
-      instagram: tool.instagramUrl || null,
-      facebook: tool.facebookUrl || null,
-      linkedin: tool.linkedinUrl || null,
-      github: tool.githubUrl || null
-    };
-
-    return {
-      ...tool,
-      categories: tool.CategoriesOnTools.map((ct: any) => ct.Category),
-      tags: tool.TagsOnTools.map((tt: any) => tt.Tag),
-      useCases: tool.UseCasesOnTools ? tool.UseCasesOnTools.map((uc: any) => uc.UseCase) : [],
-      averageRating,
-      reviewCount: tool.Review.length,
-      features: parsedFeatures,
-      createdAtFormatted,
-      updatedAtFormatted,
-      httpStatus,
-      socialLinks
-    };
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'outil:", error);
+  if (!tool) {
     return null;
   }
+
+  // Calcul de la note moyenne
+  const rating =
+    tool.Review && tool.Review.length > 0
+      ? tool.Review.reduce((acc: number, review: any) => acc + review.rating, 0) /
+        tool.Review.length
+      : 0;
+
+  // Formater les features
+  const features = tool.features ? JSON.parse(tool.features) : [];
+
+  // Formater les cas d'utilisation
+  const useCases = tool.UseCasesOnTools && tool.UseCasesOnTools.length > 0 
+    ? tool.UseCasesOnTools.map(uc => uc.useCaseId || "").filter(Boolean)
+    : [];
+  
+  // Formatter les catégories
+  const categories = tool.CategoriesOnTools.map(cat => ({
+    categoryId: cat.categoryId,
+    category: cat.Category
+  }));
+  
+  // Formatter les tags
+  const tags = tool.TagsOnTools.map(tag => ({
+    tagId: tag.tagId,
+    tag: tag.Tag
+  }));
+
+  return {
+    ...tool,
+    rating,
+    features,
+    useCases,
+    categories,
+    tags,
+    reviews: tool.Review,
+    _count: {
+      reviews: tool._count.Review
+    }
+  };
 }
 
-async function getSimilarTools(categoryId: string, currentToolId: string, limit = 4) {
-  try {
-    const similarTools = await db.tool.findMany({
-      where: {
-        id: { not: currentToolId },
-        isActive: true,
-        CategoriesOnTools: {
-          some: {
-            categoryId
-          }
-        }
-      },
-      include: {
-        CategoriesOnTools: {
-          include: {
-            Category: true
-          }
-        }
-      },
-      take: limit
-    });
+// Fonction pour récupérer des outils similaires
+async function getSimilarTools(categoryIds: string[], currentToolId: string) {
+  if (!categoryIds.length) return [];
 
-    return similarTools.map(tool => ({
-      id: tool.id,
-      slug: tool.slug,
-      name: tool.name,
-      description: tool.description,
-      logoUrl: tool.logoUrl,
-      websiteUrl: tool.websiteUrl,
-      pricingType: tool.pricingType,
-      category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
-      categoryId: tool.CategoriesOnTools[0]?.categoryId,
-      features: tool.features || []
-    }));
-  } catch (error) {
-    console.error("Erreur lors de la récupération des outils similaires:", error);
-    return [];
+  const similarTools = await db.tool.findMany({
+    where: {
+      id: {
+        not: currentToolId,
+      },
+      isActive: true,
+      CategoriesOnTools: {
+        some: {
+          categoryId: {
+            in: categoryIds,
+          },
+        },
+      },
+    },
+    include: {
+      CategoriesOnTools: {
+        include: {
+          Category: true,
+        },
+      },
+    },
+    take: 3,
+  });
+
+  return similarTools.map((tool) => ({
+    ...tool,
+    rating: 0, // Valeur par défaut
+    features: tool.features ? JSON.parse(tool.features) : [],
+    categories: tool.CategoriesOnTools.map((c) => c.Category),
+  }));
+}
+
+// Metadata dynamique
+export async function generateMetadata({
+  params,
+}: ToolPageProps): Promise<Metadata> {
+  const tool = await getToolBySlug(params.slug);
+
+  if (!tool) {
+    return {
+      title: "Outil non trouvé | Vidéo-IA.net",
+      description: "Cet outil d'IA n'a pas été trouvé dans notre base de données.",
+    };
   }
+
+  return {
+    title: `${tool.name} | Vidéo-IA.net`,
+    description: truncateText(tool.description, 160),
+    openGraph: {
+      images: [{ url: getImageWithFallback(tool.logoUrl) }],
+    },
+  };
 }
 
-export default async function ToolPage(props: { params: Promise<{ slug: string }> }) {
-  const params = await props.params;
-  const slug = params.slug;
-  const tool = await getToolBySlug(slug);
+// Créer un composant externe pour les Tabs
+import ClientTabsComponent from "@/components/tool/ClientTabs";
+
+// Composant principal
+export default async function ToolPage({ params }: ToolPageProps) {
+  const tool = await getToolBySlug(params.slug);
 
   if (!tool) {
     notFound();
   }
-  
-  if (!tool.isActive) {
-    notFound();
-  }
 
-  // Obtenir des outils similaires de la même catégorie principale
-  const primaryCategoryId = tool.CategoriesOnTools[0]?.categoryId;
-  const similarTools = primaryCategoryId 
-    ? await getSimilarTools(primaryCategoryId, tool.id) 
-    : [];
+  // Récupérer les IDs des catégories
+  const categoryIds = tool.categories.map((c) => c.categoryId);
+  const similarTools = await getSimilarTools(categoryIds, tool.id);
 
-  // Le contenu HTML sera utilisé directement sans conversion puisqu'il est déjà en HTML
-  const descriptionHtml = tool.description || '';
-  
-  // Formater le type de tarification
-  const pricingType = formatPricingType(tool.pricingType);
-  
-  // Obtenir l'image avec fallback
-  const logoUrl = getImageWithFallback(tool.logoUrl);
+  // Formater les liens sociaux s'ils existent
+  const socialLinks = [];
+  if (tool.twitterUrl) socialLinks.push({ name: "Twitter", url: tool.twitterUrl });
+  if (tool.linkedinUrl) socialLinks.push({ name: "LinkedIn", url: tool.linkedinUrl });
+  if (tool.instagramUrl) socialLinks.push({ name: "Instagram", url: tool.instagramUrl });
+  if (tool.githubUrl) socialLinks.push({ name: "GitHub", url: tool.githubUrl });
+  if (tool.facebookUrl) socialLinks.push({ name: "Facebook", url: tool.facebookUrl });
 
-  // Vérifie si l'outil a au moins un réseau social
-  const hasSocialLinks = 
-    tool.socialLinks?.twitter || 
-    tool.socialLinks?.instagram || 
-    tool.socialLinks?.facebook || 
-    tool.socialLinks?.linkedin || 
-    tool.socialLinks?.github;
-    
-  // Obtenir la couleur de la catégorie principale
-  const primaryCategory = tool.categories[0];
-  const categoryGradient = primaryCategory ? getCategoryColor(primaryCategory.slug) : "from-primary-500 to-primary-600";
+  // Ajouter les liens sociaux à l'objet outil pour le composant client
+  const toolWithSocialLinks = {
+    ...tool,
+    socialLinks
+  };
 
   return (
-    <>
-      {/* En-tête avec navigation */}
-      <div className="container px-4 mx-auto pt-6">
-        <div className="flex justify-between items-center mb-6">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/tools">← Retour aux outils</Link>
-          </Button>
-          
-          {primaryCategory && (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/categories/${primaryCategory.slug}`}>
-                Voir la catégorie {primaryCategory.name}
+    <div className="container max-w-screen-xl mx-auto px-4 py-8">
+      {/* Fil d'Ariane */}
+      <div className="mb-6">
+        <Link href="/tools" className="flex items-center text-muted-foreground hover:text-foreground transition-colors text-sm">
+          <ChevronLeft size={14} className="mr-1" />
+          Retour à la liste des outils
+        </Link>
+      </div>
+
+      {/* En-tête de l'outil */}
+      <div className="flex flex-col md:flex-row gap-6 items-start mb-8">
+        {/* Logo */}
+        <div className="w-20 h-20 md:w-24 md:h-24 relative rounded-lg border overflow-hidden flex-shrink-0 bg-white">
+          <Image
+            src={getImageWithFallback(tool.logoUrl)}
+            alt={tool.name}
+            fill
+            className="object-contain p-2"
+            sizes="(max-width: 768px) 80px, 96px"
+            priority
+          />
+        </div>
+        
+        {/* Informations principales */}
+        <div className="flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold">{tool.name}</h1>
+            <div className="flex items-center">
+              <div className="flex mr-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={16}
+                    className={`${
+                      star <= Math.round(tool.rating)
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                ({tool._count.reviews || 0})
+              </span>
+            </div>
+          </div>
+
+          {/* Tags et catégories */}
+          <div className="flex flex-wrap gap-2 my-3">
+            <Badge className={formatPricingType(tool.pricingType).className}>
+              {formatPricingType(tool.pricingType).label}
+            </Badge>
+            
+            {tool.categories.map((item) => (
+              <Link
+                key={item.categoryId}
+                href={`/categories/${item.category.slug}`}
+              >
+                <Badge variant="outline" className="flex items-center hover:bg-muted">
+                  <span className="mr-1">{getCategoryEmoji(item.category.slug)}</span>
+                  {item.category.name}
+                </Badge>
               </Link>
+            ))}
+          </div>
+          
+          {/* Description courte */}
+          <p className="text-muted-foreground">
+            {truncateText(tool.description, 200)}
+          </p>
+          
+          {/* Actions principales */}
+          <div className="flex flex-wrap gap-3 mt-4">
+            <Button asChild>
+              <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                <Globe size={16} className="mr-2" />
+                Visiter le site
+              </a>
             </Button>
-          )}
+            {tool.tags.length > 0 && (
+              <div className="flex items-center text-muted-foreground text-sm">
+                <Tag size={14} className="mr-1" />
+                {tool.tags.slice(0, 3).map((tag, i) => (
+                  <span key={tag.tagId}>
+                    {i > 0 && ", "}
+                    <Link href={`/tags/${tag.tag.slug}`} className="hover:underline">
+                      {tag.tag.name}
+                    </Link>
+                  </span>
+                ))}
+                {tool.tags.length > 3 && "..."}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
-      {/* En-tête de l'outil */}
-      <section className="py-10 border-b">
-        <div className="container px-4 mx-auto">
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Logo/Image de l'outil */}
-            <div className="md:w-1/4 flex flex-col items-center md:items-start">
-              <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 relative bg-muted rounded-xl overflow-hidden shadow-md">
-                {logoUrl ? (
-                  <Image 
-                    src={logoUrl} 
-                    alt={`Logo de ${tool.name}`}
-                    fill 
-                    className="object-cover"
-                    priority
-                    sizes="(max-width: 768px) 128px, 160px"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted-foreground/10 to-muted">
-                    <span className="text-4xl font-bold text-muted-foreground">{tool.name.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Image secondaire si disponible */}
-              {tool.logoUrl && !tool.logoUrl.includes(tool.websiteUrl) && (
-                <div className="mt-4 w-full aspect-video relative bg-muted rounded-lg overflow-hidden shadow-md">
-                  <Image 
-                    src={tool.logoUrl} 
-                    alt={`Aperçu de ${tool.name}`}
-                    fill 
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 25vw"
-                  />
-                </div>
-              )}
-              
-              {/* Statut HTTP */}
-              <div className={`mt-4 w-full text-center px-3 py-2 rounded-md text-sm ${
-                tool.httpStatus.status === 'success' ? 'bg-success/10 text-success' : 
-                tool.httpStatus.status === 'warning' ? 'bg-warning/10 text-warning' : 
-                'bg-muted text-muted-foreground'
-              }`}>
-                {tool.httpStatus.text}
-              </div>
-            </div>
-            
-            {/* Informations principales de l'outil */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-                <h1 className="text-3xl md:text-4xl font-bold">{tool.name}</h1>
-                {tool.averageRating !== null && (
-                  <div className="flex items-center gap-1 ml-0 md:ml-4">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <svg
-                        key={star}
-                        className={`w-5 h-5 ${
-                          star <= Math.round(tool.averageRating as number)
-                            ? "text-yellow-500"
-                            : "text-muted"
-                        }`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                    <span className="text-sm text-muted-foreground ml-1">
-                      {(tool.averageRating as number).toFixed(1)} ({tool.reviewCount} avis)
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <p className="text-lg text-muted-foreground mb-4">{tool.description}</p>
-              
-              <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-4">
-                <Badge variant={pricingType.label === "Gratuit" ? "success" : 
-                               pricingType.label === "Freemium" ? "primary" : 
-                               "accent"} className="text-sm">
-                  {pricingType.label}
-                  {tool.pricingDetails && <span className="ml-1 opacity-80">({tool.pricingDetails})</span>}
-                </Badge>
-                
-                {tool.categories.map((category) => (
-                  <Link href={`/categories/${category.slug}`} key={category.id}>
-                    <Badge variant="secondary" className="hover:bg-secondary/80 cursor-pointer">
-                      {category.name}
-                    </Badge>
-                  </Link>
-                ))}
-              </div>
-              
-              {/* Dates et mise à jour */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mb-4 justify-center md:justify-start">
-                <span>Ajouté le {tool.createdAtFormatted}</span>
-                <span>Dernière mise à jour: {tool.updatedAtFormatted}</span>
-              </div>
-              
-              <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
-                <Button size="lg" asChild className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700">
-                  <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer">
-                    Visiter le site officiel
-                  </a>
-                </Button>
-                
-                {hasSocialLinks && (
-                  <div className="flex space-x-2">
-                    {tool.socialLinks.twitter && (
-                      <a href={tool.socialLinks.twitter} target="_blank" rel="noopener noreferrer" 
-                         className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground" title="Twitter/X">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-                        </svg>
-                      </a>
-                    )}
-                    {tool.socialLinks.instagram && (
-                      <a href={tool.socialLinks.instagram} target="_blank" rel="noopener noreferrer" 
-                         className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground" title="Instagram">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                        </svg>
-                      </a>
-                    )}
-                    {tool.socialLinks.facebook && (
-                      <a href={tool.socialLinks.facebook} target="_blank" rel="noopener noreferrer" 
-                         className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground" title="Facebook">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                        </svg>
-                      </a>
-                    )}
-                    {tool.socialLinks.linkedin && (
-                      <a href={tool.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" 
-                         className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground" title="LinkedIn">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                        </svg>
-                      </a>
-                    )}
-                    {tool.socialLinks.github && (
-                      <a href={tool.socialLinks.github} target="_blank" rel="noopener noreferrer" 
-                         className="p-2 rounded-full bg-muted hover:bg-muted/80 text-foreground" title="GitHub">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Separator className="my-6" />
       
-      {/* Corps principal avec description et fonctionnalités */}
-      <section className="py-12">
-        <div className="container px-4 mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Colonne principale avec description */}
-            <div className="lg:col-span-2">
-              <Card className="mb-8 overflow-hidden">
-                <div className="bg-gradient-to-br from-primary-500/10 to-primary-600/10 p-5 border-b">
-                  <h2 className="text-2xl font-bold">À propos de {tool.name}</h2>
-                </div>
-                <CardContent className="p-6">
-                  <div 
-                    className="prose prose-lg max-w-none mb-6 markdown-content"
-                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                  />
-                  
-                  {/* Site web et détails */}
-                  <div className="rounded-lg bg-muted/30 p-4 mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Site web</h3>
-                    <p className="mb-2">
-                      <a href={tool.websiteUrl} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         className="text-primary hover:underline break-all">
-                        {tool.websiteUrl}
-                      </a>
-                    </p>
-                    {tool.pricingDetails && (
-                      <div className="mt-4">
-                        <h4 className="font-medium text-base">Informations de tarification:</h4>
-                        <p className="mt-1">{tool.pricingDetails}</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Tags */}
-              {tool.tags.length > 0 && (
-                <Card className="mb-8">
-                  <div className="bg-gradient-to-br from-accent-500/10 to-accent-600/10 p-5 border-b">
-                    <h2 className="text-2xl font-bold">Tags associés</h2>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="flex flex-wrap gap-2">
-                      {tool.tags.map(tag => (
-                        <Badge key={tag.id} variant="outline" className="text-sm py-2 px-3">
-                          {tag.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Cas d'utilisation si disponibles */}
-              {tool.useCases && tool.useCases.length > 0 && (
-                <Card className="mb-8">
-                  <div className="bg-gradient-to-br from-success-500/10 to-success-600/10 p-5 border-b">
-                    <h2 className="text-2xl font-bold">Cas d'utilisation</h2>
-                  </div>
-                  <CardContent className="p-6">
-                    <ul className="space-y-2">
-                      {tool.useCases.map(useCase => (
-                        <li key={useCase.id} className="flex items-start">
-                          <span className="text-success mr-2 flex-shrink-0 mt-1">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M6.66674 10.1147L12.7947 3.98599L13.7381 4.92866L6.66674 12L2.42407 7.75733L3.36674 6.81466L6.66674 10.1147Z" fill="currentColor"/>
-                            </svg>
-                          </span>
-                          <span>{useCase.name} {useCase.description && 
-                            <span className="text-muted-foreground text-sm">
-                              - {useCase.description}
-                            </span>}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Avis si disponibles */}
-              {tool.Review && tool.Review.length > 0 && (
-                <Card className="mb-8">
-                  <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/10 p-5 border-b">
-                    <h2 className="text-2xl font-bold">Avis des utilisateurs</h2>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {tool.Review.map(review => (
-                        <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                          <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-semibold">{review.title}</h3>
-                            <div className="flex">
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <svg 
-                                  key={star} 
-                                  className={`w-4 h-4 ${star <= review.rating ? 'text-yellow-500' : 'text-muted'}`}
-                                  fill="currentColor" 
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-muted-foreground text-sm mb-1">
-                            Par {review.userName} ({review.userEmail}) • {formatDate(review.createdAt)}
-                          </p>
-                          <p className="text-foreground">{review.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            
-            {/* Colonne secondaire avec fonctionnalités et liens */}
-            <div>
-              {/* Fonctionnalités */}
-              <Card className="mb-6 overflow-hidden">
-                <div className="bg-gradient-to-br from-primary-500/10 to-primary-600/10 p-5 border-b">
-                  <h3 className="text-xl font-semibold">Fonctionnalités principales</h3>
-                </div>
-                <CardContent className="p-6">
-                  {Array.isArray(tool.features) && tool.features.length > 0 ? (
-                    <ul className="space-y-3">
-                      {tool.features.map((feature, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-success mr-2 flex-shrink-0 mt-1">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M6.66674 10.1147L12.7947 3.98599L13.7381 4.92866L6.66674 12L2.42407 7.75733L3.36674 6.81466L6.66674 10.1147Z" fill="currentColor"/>
-                            </svg>
-                          </span>
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-muted-foreground">Aucune fonctionnalité spécifiée</p>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {/* Réseaux sociaux détaillés */}
-              {hasSocialLinks && (
-                <Card className="mb-6 overflow-hidden">
-                  <div className="bg-gradient-to-br from-accent-500/10 to-accent-600/10 p-5 border-b">
-                    <h3 className="text-xl font-semibold">Réseaux sociaux</h3>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="space-y-3">
-                      {tool.socialLinks.twitter && (
-                        <a 
-                          href={tool.socialLinks.twitter} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-muted/80 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-                          </svg>
-                          <span className="flex-1 truncate">{tool.socialLinks.twitter.replace(/^https?:\/\/(www\.)?/i, '')}</span>
-                        </a>
-                      )}
-                      
-                      {tool.socialLinks.instagram && (
-                        <a 
-                          href={tool.socialLinks.instagram} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-muted/80 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                          </svg>
-                          <span className="flex-1 truncate">{tool.socialLinks.instagram.replace(/^https?:\/\/(www\.)?/i, '')}</span>
-                        </a>
-                      )}
-                      
-                      {tool.socialLinks.facebook && (
-                        <a 
-                          href={tool.socialLinks.facebook} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-muted/80 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                          </svg>
-                          <span className="flex-1 truncate">{tool.socialLinks.facebook.replace(/^https?:\/\/(www\.)?/i, '')}</span>
-                        </a>
-                      )}
-                      
-                      {tool.socialLinks.linkedin && (
-                        <a 
-                          href={tool.socialLinks.linkedin} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-muted/80 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                          </svg>
-                          <span className="flex-1 truncate">{tool.socialLinks.linkedin.replace(/^https?:\/\/(www\.)?/i, '')}</span>
-                        </a>
-                      )}
-                      
-                      {tool.socialLinks.github && (
-                        <a 
-                          href={tool.socialLinks.github} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-muted/80 rounded-md transition-colors"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                          </svg>
-                          <span className="flex-1 truncate">{tool.socialLinks.github.replace(/^https?:\/\/(www\.)?/i, '')}</span>
-                        </a>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Informations techniques */}
-              <Card className="mb-6 overflow-hidden">
-                <div className="bg-gradient-to-br from-neutral-500/10 to-neutral-600/10 p-5 border-b">
-                  <h3 className="text-xl font-semibold">Informations techniques</h3>
-                </div>
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Type de tarification:</span>
-                      <span className="font-medium">{pricingType.label}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date d'ajout:</span>
-                      <span>{tool.createdAtFormatted}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Dernière mise à jour:</span>
-                      <span>{tool.updatedAtFormatted}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">ID:</span>
-                      <span className="text-xs font-mono text-muted-foreground">{tool.id}</span>
-                    </div>
-                    {tool.httpCode && (
-                      <>
-                        <Separator />
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Statut HTTP:</span>
-                          <span className={tool.httpCode === 200 ? 'text-success' : 'text-warning'}>
-                            {tool.httpCode}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Outils similaires */}
-      {similarTools.length > 0 && (
-        <section className="py-12 bg-muted/30">
-          <div className="container px-4 mx-auto">
-            <h2 className="text-2xl font-bold mb-8">Outils similaires</h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {similarTools.map(tool => (
-                <ToolCard 
-                  key={tool.id} 
-                  tool={tool} 
-                />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-      
-      {/* CTA */}
-      <section className="py-16 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-        <div className="container px-4 mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Vous connaissez un outil similaire?</h2>
-          <p className="max-w-2xl mx-auto mb-8 opacity-90">
-            Si vous connaissez un autre outil d'IA vidéo qui devrait être dans notre catalogue, n'hésitez pas à nous le faire savoir.
-          </p>
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            asChild
-          >
-            <Link href="/contact">Suggérer un outil</Link>
-          </Button>
-        </div>
-      </section>
-    </>
+      {/* Contenu principal en onglets pour un format wiki */}
+      <ClientTabsComponent tool={toolWithSocialLinks} similarTools={similarTools} />
+    </div>
   );
 } 

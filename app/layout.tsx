@@ -58,6 +58,74 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <style>
+          {`
+            :root {
+              --background: #f8fafc;
+              --foreground: #1e293b;
+              --card: #ffffff;
+              --card-foreground: #1e293b;
+              --primary: #6200ea;
+              --primary-foreground: #ffffff;
+              --muted: #f1f5f9;
+              --muted-foreground: #64748b;
+              --success: #10b981;
+              --success-foreground: #ffffff;
+              --accent: #f97316;
+              --accent-foreground: #ffffff;
+              --destructive: #ef4444;
+              --destructive-foreground: #ffffff;
+              --border: #e2e8f0;
+              --input: #e2e8f0;
+              --ring: #6200ea;
+            }
+            .dark {
+              --background: #0f172a;
+              --foreground: #f8fafc;
+              --card: #1e293b;
+              --card-foreground: #f8fafc;
+              --primary: #9f75ff;
+              --primary-foreground: #0f172a;
+              --muted: #1e293b;
+              --muted-foreground: #94a3b8;
+              --success: #34d399;
+              --success-foreground: #0f172a;
+              --accent: #fb923c;
+              --accent-foreground: #0f172a;
+              --destructive: #f87171;
+              --destructive-foreground: #0f172a;
+              --border: #334155;
+              --input: #334155;
+              --ring: #9f75ff;
+            }
+            
+            body {
+              color: var(--foreground);
+              background-color: var(--background);
+            }
+            h1, h2, h3, h4, h5, h6 {
+              color: var(--foreground);
+            }
+            a {
+              color: var(--primary);
+            }
+            
+            .bg-white.dark\\:bg-gray-800 {
+              background-color: var(--card);
+              color: var(--card-foreground);
+            }
+            
+            .dark .text-gray-900 {
+              color: var(--foreground) !important;
+            }
+            .dark .text-gray-700 {
+              color: var(--muted-foreground) !important;
+            }
+          `}
+        </style>
+      </head>
       <body className="flex min-h-screen flex-col bg-background antialiased">
         <Header />
         <main className="flex-grow">

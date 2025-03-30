@@ -117,7 +117,7 @@ export default function WebsiteCrawlerPage() {
       } else if (statusFilter === 'dns') {
         matchesStatus = tool.httpChain === 'DNS';
       } else if (statusFilter === 'notcrawled') {
-        matchesStatus = !tool.httpCode && !tool.httpChain;
+        matchesStatus = !tool.httpCode && (!tool.httpChain || tool.httpChain === '' || tool.httpChain === 'undefined');
       }
       
       // Filtre par statut actif/inactif
@@ -527,7 +527,7 @@ export default function WebsiteCrawlerPage() {
                   <option value="redirect">Redirections (300-399)</option>
                   <option value="error">Erreurs (400+)</option>
                   <option value="dns">Erreurs DNS</option>
-                  <option value="notcrawled">Non vérifiés</option>
+                  <option value="notcrawled">URLs non vérifiées</option>
                 </select>
               </div>
               

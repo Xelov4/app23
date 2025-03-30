@@ -1,8 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { CategoryCard } from "@/components/ui/category-card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { getCategoryEmoji, getCategoryColor } from "@/lib/design-system/primitives";
+import { Search, ArrowRight } from "lucide-react";
 
 export const revalidate = 3600; // Revalider les données toutes les heures
 export const dynamic = 'force-dynamic';
@@ -24,135 +28,123 @@ async function getCategories() {
   }
 }
 
-// Fonction pour regrouper les catégories par type/groupe
-function groupCategories(categories: any[]) {
-  // Définir les groupes principales
-  const groups: Record<string, string[]> = {
-    "Création de contenu": [
-      "generation-videos", "image-generation", "3d", "animation"
-    ],
-    "Édition et montage": [
-      "edition-videos", "montage", "effets-speciaux"
-    ],
-    "Audio et voix": [
-      "audio", "voix", "musique"
-    ],
-    "Accessibilité": [
-      "transcription", "sous-titres", "traduction"
-    ],
-    "Réalité virtuelle et augmentée": [
-      "realite-virtuelle", "realite-augmentee", "avatars"
-    ],
-    "Analytics et diffusion": [
-      "analytics", "diffusion", "marketing", "monetisation"
-    ],
-    "Autres": [] // Pour les catégories qui ne correspondent à aucun groupe
-  };
-
-  // Initialiser les groupes avec des arrays vides
-  const groupedCategories: Record<string, any[]> = {};
-  Object.keys(groups).forEach(group => {
-    groupedCategories[group] = [];
-  });
-
-  // Placer chaque catégorie dans son groupe
-  categories.forEach(category => {
-    let placed = false;
-    
-    // Chercher dans quel groupe cette catégorie devrait aller
-    for (const [groupName, slugs] of Object.entries(groups)) {
-      if (slugs.includes(category.slug)) {
-        groupedCategories[groupName].push(category);
-        placed = true;
-        break;
-      }
-    }
-    
-    // Si elle n'appartient à aucun groupe, la mettre dans "Autres"
-    if (!placed) {
-      groupedCategories["Autres"].push(category);
-    }
-  });
-
-  // Supprimer les groupes vides
-  Object.keys(groupedCategories).forEach(key => {
-    if (groupedCategories[key].length === 0) {
-      delete groupedCategories[key];
-    }
-  });
-
-  return groupedCategories;
-}
-
 export default async function CategoriesPage() {
   // Récupérer toutes les catégories
   const categories = await getCategories();
   
-  // Grouper les catégories par type
-  const groupedCategories = groupCategories(categories);
+  // Organiser les catégories par ordre alphabétique pour un affichage clair
+  const categoriesByLetter: Record<string, typeof categories> = {};
+  
+  categories.forEach(category => {
+    const firstLetter = category.name.charAt(0).toUpperCase();
+    if (!categoriesByLetter[firstLetter]) {
+      categoriesByLetter[firstLetter] = [];
+    }
+    categoriesByLetter[firstLetter].push(category);
+  });
+  
+  // Obtenir les lettres de l'alphabet qui ont des catégories
+  const letters = Object.keys(categoriesByLetter).sort();
+  
+  // Calculer les statistiques pour le header
+  const totalTools = categories.reduce((sum, cat) => sum + cat._count.CategoriesOnTools, 0);
   
   return (
-    <>
-      {/* En-tête de la page */}
-      <section className="bg-gradient-to-b from-primary-50 to-background py-12">
-        <div className="container px-4 mx-auto">
+    <div className="bg-background min-h-screen">
+      {/* En-tête simple */}
+      <section className="bg-gradient-to-r from-primary-600 to-primary-800 py-12 text-white">
+        <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 animate-fade-in">
-              Catégories d'outils d'IA vidéo
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">
+              Toutes les catégories d'outils d'IA vidéo
             </h1>
-            <p className="text-lg text-muted-foreground mb-6 animate-fade-in">
-              Explorez notre sélection d'outils d'IA classés par catégorie pour trouver exactement ce dont vous avez besoin
+            <p className="text-primary-100 mb-6">
+              Explorez notre collection d'outils d'IA pour la vidéo par catégorie.
             </p>
+            <div className="relative max-w-xl mx-auto">
+              <Input 
+                placeholder="Rechercher une catégorie..." 
+                className="pl-10 pr-4 py-2 w-full bg-white/10 backdrop-blur border-white/20 text-white placeholder:text-white/60 hover:bg-white/20 focus:bg-white/20"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70" size={18} />
+            </div>
+          </div>
+          
+          {/* Statistiques simples */}
+          <div className="flex justify-center mt-8 space-x-12">
+            <div className="text-center">
+              <div className="text-3xl font-bold">{categories.length}</div>
+              <div className="text-primary-200 text-sm">Catégories</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{totalTools}</div>
+              <div className="text-primary-200 text-sm">Outils</div>
+            </div>
           </div>
         </div>
       </section>
       
-      <div className="container px-4 mx-auto py-8">
-        {/* Barre de navigation rapide des groupes */}
-        <div className="mb-8 overflow-x-auto pb-2">
-          <div className="flex space-x-2 min-w-max">
-            {Object.keys(groupedCategories).map((groupName) => (
-              <a 
-                key={groupName} 
-                href={`#group-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-                className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
-              >
-                {groupName}
-              </a>
-            ))}
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        {/* Index alphabétique pour navigation rapide */}
+        <div className="flex flex-wrap justify-center gap-2 mb-8 sticky top-0 pt-4 pb-4 bg-background z-10">
+          {letters.map(letter => (
+            <a 
+              key={letter} 
+              href={`#letter-${letter}`}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-primary hover:text-white transition-colors"
+            >
+              {letter}
+            </a>
+          ))}
         </div>
         
-        {/* Liste des catégories par groupe */}
-        {Object.entries(groupedCategories).map(([groupName, groupCategories]) => (
-          <div 
-            key={groupName} 
-            id={`group-${groupName.toLowerCase().replace(/\s+/g, '-')}`}
-            className="mb-12 scroll-mt-8"
-          >
-            <h2 className="text-2xl font-bold mb-6 animate-fade-in">{groupName}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {groupCategories.map((category) => (
-                <CategoryCard 
-                  key={category.id} 
-                  category={category} 
-                />
-              ))}
+        {/* Liste des catégories par lettre */}
+        <div className="space-y-8">
+          {letters.map(letter => (
+            <div key={letter} id={`letter-${letter}`} className="scroll-mt-20">
+              <Separator className="my-4" />
+              <h2 className="text-2xl font-bold mb-6 flex items-center">
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white mr-3">
+                  {letter}
+                </span>
+                Catégories commençant par {letter}
+              </h2>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {categoriesByLetter[letter].map(category => (
+                  <Link
+                    key={category.id}
+                    href={`/categories/${category.slug}`}
+                    className="bg-card border rounded-lg p-4 hover:shadow-md transition-shadow flex items-center"
+                  >
+                    <div className="mr-3 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-xl">
+                      {getCategoryEmoji(category.slug)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium">{category.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {category._count.CategoriesOnTools} outil{category._count.CategoriesOnTools !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <ArrowRight size={16} className="text-muted-foreground ml-2" />
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
         
-        {/* CTA - Ajout d'une catégorie */}
-        <div className="mt-16 bg-muted/50 rounded-lg p-8 text-center">
+        {/* Suggestion d'ajout de catégorie */}
+        <div className="mt-12 bg-muted/50 rounded-lg p-6 text-center">
           <h3 className="text-xl font-semibold mb-2">Vous ne trouvez pas ce que vous cherchez?</h3>
-          <p className="text-muted-foreground max-w-lg mx-auto mb-6">
-            Si vous connaissez un outil d'IA qui n'est pas répertorié ou si vous pensez qu'une catégorie manque, n'hésitez pas à nous le faire savoir.
+          <p className="text-muted-foreground max-w-lg mx-auto mb-4">
+            Si vous connaissez une catégorie ou un outil qui n'est pas encore dans notre base de données, n'hésitez pas à nous le faire savoir.
           </p>
-          <Button asChild size="lg">
-            <Link href="/contact">Suggérer une catégorie</Link>
+          <Button asChild>
+            <Link href="/suggest">Suggérer une catégorie</Link>
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 } 
