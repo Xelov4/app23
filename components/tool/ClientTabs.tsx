@@ -51,6 +51,21 @@ export default function ClientTabs({ tool, similarTools }: ClientTabsProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Colonne principale */}
           <div className="md:col-span-2 space-y-8">
+            {/* Image mise en valeur */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-4">Aperçu de {tool.name}</h2>
+              <div className="relative w-full aspect-video rounded-lg overflow-hidden border bg-white shadow-sm group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <Image
+                  src={getImageWithFallback(tool.logoUrl)}
+                  alt={tool.name}
+                  fill
+                  className="object-contain p-4"
+                  priority
+                />
+              </div>
+            </div>
+            
             {/* Description complète */}
             <div className="prose prose-blue dark:prose-invert max-w-none">
               <h2 className="text-xl font-semibold mb-4">À propos de {tool.name}</h2>

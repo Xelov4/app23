@@ -16,9 +16,12 @@ import {
 import { db } from "@/lib/db";
 import { ChevronLeft, Globe, ExternalLink, Tag, Clock, Calendar, Star, Info, CheckCircle, MessageSquare, ArrowRight } from "lucide-react";
 
-// Revalider toutes les heures
+// Import direct du composant client
+import ClientTabsComponent from "@/components/tool/ClientTabs";
+
+// Options de page Next.js
 export const revalidate = 3600;
-export const dynamic = "force-dynamic";
+export const fetchCache = "default-no-store";
 
 // Types
 type ToolPageProps = {
@@ -145,8 +148,9 @@ async function getSimilarTools(categoryIds: string[], currentToolId: string) {
 export async function generateMetadata({
   params,
 }: ToolPageProps): Promise<Metadata> {
-  const tool = await getToolBySlug(params.slug);
-
+  const slug = await Promise.resolve(params.slug);
+  const tool = await getToolBySlug(slug);
+  
   if (!tool) {
     return {
       title: "Outil non trouvé | Vidéo-IA.net",
@@ -163,12 +167,12 @@ export async function generateMetadata({
   };
 }
 
-// Créer un composant externe pour les Tabs
-import ClientTabsComponent from "@/components/tool/ClientTabs";
-
 // Composant principal
-export default async function ToolPage({ params }: ToolPageProps) {
-  const tool = await getToolBySlug(params.slug);
+export default async function ToolPage({
+  params,
+}: ToolPageProps) {
+  const slug = await Promise.resolve(params.slug);
+  const tool = await getToolBySlug(slug);
 
   if (!tool) {
     notFound();
@@ -204,14 +208,15 @@ export default async function ToolPage({ params }: ToolPageProps) {
 
       {/* En-tête de l'outil */}
       <div className="flex flex-col md:flex-row gap-6 items-start mb-8">
-        {/* Logo */}
-        <div className="w-20 h-20 md:w-24 md:h-24 relative rounded-lg border overflow-hidden flex-shrink-0 bg-white">
+        {/* Logo - Version améliorée avec image plus grande et centrée */}
+        <div className="w-24 h-24 md:w-40 md:h-40 relative rounded-lg border overflow-hidden flex-shrink-0 bg-white shadow-sm mx-auto md:mx-0 group hover:shadow-md transition-all duration-300">
+          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <Image
             src={getImageWithFallback(tool.logoUrl)}
             alt={tool.name}
             fill
-            className="object-contain p-2"
-            sizes="(max-width: 768px) 80px, 96px"
+            className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+            sizes="(max-width: 768px) 96px, 160px"
             priority
           />
         </div>

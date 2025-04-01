@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
+import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitemapEntry } from '@/lib/sitemap-utils';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
+    const url = new URL(request.url);
+    const host = url.host;
+    
     // Générer le contenu XML du sitemap
-    const baseUrl = 'https://www.video-ia.net';
-    const now = new Date().toISOString();
+    const baseUrl = getSiteBaseUrl(host);
+    const now = formatSitemapDate(new Date());
 
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    let xml = generateSitemapHeader();
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Pages statiques
@@ -14,16 +19,16 @@ export async function GET() {
       { path: '/', priority: '1.0', changefreq: 'daily' },
       { path: '/contact/', priority: '0.8', changefreq: 'monthly' },
       { path: '/sitemap/', priority: '0.7', changefreq: 'monthly' },
+      { path: '/admin/', priority: '0.5', changefreq: 'weekly' },
       // Ajouter d'autres pages statiques si nécessaire
     ];
 
     staticPages.forEach(page => {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}${page.path}</loc>\n`;
-      xml += `    <lastmod>${now}</lastmod>\n`;
-      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
-      xml += `    <priority>${page.priority}</priority>\n`;
-      xml += `  </url>\n`;
+      xml += generateSitemapEntry(`${baseUrl}${page.path}`, {
+        lastmod: now,
+        changefreq: page.changefreq as any,
+        priority: page.priority
+      });
     });
 
     xml += '</urlset>';

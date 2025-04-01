@@ -1,25 +1,29 @@
 import { NextResponse } from 'next/server';
+import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitemapIndexEntry } from '@/lib/sitemap-utils';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const baseUrl = 'https://www.video-ia.net';
-    const now = new Date().toISOString();
+    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
+    const url = new URL(request.url);
+    const host = url.host;
+    
+    const baseUrl = getSiteBaseUrl(host);
+    const now = formatSitemapDate(new Date());
 
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    let xml = generateSitemapHeader();
     xml += '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Ajouter les références aux différents sitemaps
     const sitemaps = [
       { name: 'sitemap-pages.xml', lastmod: now },
       { name: 'sitemap-categories.xml', lastmod: now },
-      { name: 'sitemap-tools.xml', lastmod: now }
+      { name: 'sitemap-tools.xml', lastmod: now },
+      { name: 'sitemap-tags.xml', lastmod: now },
+      { name: 'sitemap.xml', lastmod: now } // Sitemap global (facultatif)
     ];
 
     sitemaps.forEach(sitemap => {
-      xml += `  <sitemap>\n`;
-      xml += `    <loc>${baseUrl}/${sitemap.name}</loc>\n`;
-      xml += `    <lastmod>${sitemap.lastmod}</lastmod>\n`;
-      xml += `  </sitemap>\n`;
+      xml += generateSitemapIndexEntry(`${baseUrl}/api/${sitemap.name}`, sitemap.lastmod);
     });
 
     xml += '</sitemapindex>';

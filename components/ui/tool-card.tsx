@@ -71,13 +71,20 @@ export function ToolCard({
           <CardContent className="p-4 bg-card">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted">
-                  <Image 
-                    src={logoUrl} 
-                    alt={tool.name} 
-                    fill 
-                    className="object-cover"
-                  />
+                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white">
+                  {logoUrl ? (
+                    <Image 
+                      src={logoUrl} 
+                      alt={tool.name} 
+                      fill 
+                      className="object-contain p-1"
+                      priority
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-xl font-bold text-primary">{tool.name.charAt(0)}</span>
+                    </div>
+                  )}
                 </div>
                 <Badge variant={pricingBadgeVariant}>
                   {pricingType.label}
@@ -98,16 +105,17 @@ export function ToolCard({
     <Link href={`/tools/${tool.slug}`} className="block w-full h-full">
       <Card className={`h-full transition-all hover:shadow-md hover:-translate-y-1 ${className}`}>
         <CardHeader className="p-4 pb-0 flex justify-center">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white flex items-center justify-center">
             {logoUrl ? (
               <Image 
                 src={logoUrl} 
                 alt={tool.name} 
                 fill 
-                className="object-cover"
+                className="object-contain p-1"
+                priority
               />
             ) : (
-              <span className="text-2xl font-bold text-neutral-500">
+              <span className="text-2xl font-bold text-primary">
                 {tool.name.charAt(0)}
               </span>
             )}

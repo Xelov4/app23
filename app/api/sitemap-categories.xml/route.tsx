@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitemapEntry } from '@/lib/sitemap-utils';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
+    const url = new URL(request.url);
+    const host = url.host;
+    
     // Récupérer toutes les catégories
     const categories = await prisma.category.findMany({
       select: {
@@ -14,27 +19,26 @@ export async function GET() {
     });
 
     // Générer le contenu XML du sitemap
-    const baseUrl = 'https://www.video-ia.net';
+    const baseUrl = getSiteBaseUrl(host);
+    const now = formatSitemapDate(new Date());
 
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    let xml = generateSitemapHeader();
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Page principale des catégories
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/categories/</loc>\n`;
-    xml += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
-    xml += `    <changefreq>weekly</changefreq>\n`;
-    xml += `    <priority>0.8</priority>\n`;
-    xml += `  </url>\n`;
+    xml += generateSitemapEntry(`${baseUrl}/categories/`, {
+      lastmod: now,
+      changefreq: 'weekly',
+      priority: '0.8'
+    });
 
     // Ajouter les URLs des catégories
     categories.forEach(category => {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}/categories/${category.slug}/</loc>\n`;
-      xml += `    <lastmod>${category.updatedAt.toISOString()}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.7</priority>\n`;
-      xml += `  </url>\n`;
+      xml += generateSitemapEntry(`${baseUrl}/categories/${category.slug}/`, {
+        lastmod: formatSitemapDate(category.updatedAt),
+        changefreq: 'weekly',
+        priority: '0.7'
+      });
     });
 
     xml += '</urlset>';

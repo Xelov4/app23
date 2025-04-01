@@ -1,5 +1,6 @@
+# Robot rules
 User-agent: *
 Allow: /
 
-# Sitemap principal
-Sitemap: https://www.video-ia.net/sitemap-index.xml
+# Sitemaps
+Sitemap: https://www.video-ia.net/api/sitemap-index.xml

@@ -268,14 +268,21 @@ export default async function Home() {
                   key={tool.id}
                   className="bg-card rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col h-full"
                 >
-                  <div className="relative bg-muted aspect-video">
-                    <Image
-                      src={getImageWithFallback(tool.logoUrl)}
-                      alt={tool.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-contain p-4"
-                    />
+                  <div className="relative bg-white aspect-video flex items-center justify-center">
+                    {tool.logoUrl ? (
+                      <Image
+                        src={getImageWithFallback(tool.logoUrl)}
+                        alt={tool.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-contain p-4"
+                        priority
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-16 h-16 rounded-full bg-muted-foreground/10">
+                        <span className="text-2xl font-bold text-primary">{tool.name.charAt(0)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
                     <h3 className="font-semibold text-lg mb-1">{tool.name}</h3>

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitemapEntry } from '@/lib/sitemap-utils';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
+    const url = new URL(request.url);
+    const host = url.host;
+    
     // Récupérer toutes les catégories
     const categories = await prisma.category.findMany({
-      where: { },
       select: {
         slug: true,
       },
@@ -21,51 +25,82 @@ export async function GET() {
       },
     });
 
-    // Générer le contenu XML du sitemap
-    const baseUrl = 'https://www.video-ia.net';
-    const now = new Date().toISOString();
+    // Récupérer tous les tags
+    const tags = await prisma.tag.findMany({
+      select: {
+        slug: true,
+      },
+    });
 
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    // Générer le contenu XML du sitemap
+    const baseUrl = getSiteBaseUrl(host);
+    const now = formatSitemapDate(new Date());
+
+    let xml = generateSitemapHeader();
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Ajouter l'URL de la page d'accueil
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/</loc>\n`;
-    xml += `    <lastmod>${now}</lastmod>\n`;
-    xml += `    <changefreq>daily</changefreq>\n`;
-    xml += `    <priority>1.0</priority>\n`;
-    xml += `  </url>\n`;
+    xml += generateSitemapEntry(`${baseUrl}/`, {
+      lastmod: now,
+      changefreq: 'daily',
+      priority: '1.0'
+    });
 
     // Ajouter les URLs de pages statiques
-    const staticPages = ['/contact/', '/sitemap/'];
+    const staticPages = ['/contact/', '/sitemap/', '/admin/'];
     
     staticPages.forEach(page => {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}${page}</loc>\n`;
-      xml += `    <lastmod>${now}</lastmod>\n`;
-      xml += `    <changefreq>monthly</changefreq>\n`;
-      xml += `    <priority>0.8</priority>\n`;
-      xml += `  </url>\n`;
+      xml += generateSitemapEntry(`${baseUrl}${page}`, {
+        lastmod: now,
+        changefreq: 'monthly',
+        priority: '0.8'
+      });
+    });
+
+    // URL de base pour les pages de liste
+    xml += generateSitemapEntry(`${baseUrl}/categories/`, {
+      lastmod: now,
+      changefreq: 'weekly',
+      priority: '0.8'
+    });
+
+    xml += generateSitemapEntry(`${baseUrl}/tools/`, {
+      lastmod: now,
+      changefreq: 'daily',
+      priority: '0.9'
+    });
+
+    xml += generateSitemapEntry(`${baseUrl}/tags/`, {
+      lastmod: now,
+      changefreq: 'weekly',
+      priority: '0.7'
     });
 
     // Ajouter les URLs des catégories
     categories.forEach(category => {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}/categories/${category.slug}/</loc>\n`;
-      xml += `    <lastmod>${now}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.7</priority>\n`;
-      xml += `  </url>\n`;
+      xml += generateSitemapEntry(`${baseUrl}/categories/${category.slug}/`, {
+        lastmod: now,
+        changefreq: 'weekly',
+        priority: '0.7'
+      });
     });
 
     // Ajouter les URLs des outils
     tools.forEach(tool => {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}/tools/${tool.slug}/</loc>\n`;
-      xml += `    <lastmod>${now}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.6</priority>\n`;
-      xml += `  </url>\n`;
+      xml += generateSitemapEntry(`${baseUrl}/tools/${tool.slug}/`, {
+        lastmod: now,
+        changefreq: 'weekly',
+        priority: '0.6'
+      });
+    });
+
+    // Ajouter les URLs des tags
+    tags.forEach(tag => {
+      xml += generateSitemapEntry(`${baseUrl}/tags/${tag.slug}/`, {
+        lastmod: now,
+        changefreq: 'weekly',
+        priority: '0.6'
+      });
     });
 
     xml += '</urlset>';
@@ -74,6 +109,7 @@ export async function GET() {
     return new NextResponse(xml, {
       headers: {
         'Content-Type': 'application/xml',
+        'Cache-Control': 'public, max-age=86400'
       },
     });
   } catch (error) {

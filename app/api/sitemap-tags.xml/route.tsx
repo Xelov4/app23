@@ -10,11 +10,8 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const host = url.host;
     
-    // Récupérer tous les outils actifs
-    const tools = await prisma.tool.findMany({
-      where: { 
-        isActive: true 
-      },
+    // Récupérer tous les tags
+    const tags = await prisma.tag.findMany({
       select: {
         slug: true,
         updatedAt: true,
@@ -28,17 +25,17 @@ export async function GET(request: Request) {
     let xml = generateSitemapHeader();
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
-    // Page principale des outils
-    xml += generateSitemapEntry(`${baseUrl}/tools/`, {
+    // Page principale des tags (si elle existe)
+    xml += generateSitemapEntry(`${baseUrl}/tags/`, {
       lastmod: now,
-      changefreq: 'daily',
-      priority: '0.9'
+      changefreq: 'weekly',
+      priority: '0.7'
     });
 
-    // Ajouter les URLs des outils
-    tools.forEach(tool => {
-      xml += generateSitemapEntry(`${baseUrl}/tools/${tool.slug}/`, {
-        lastmod: formatSitemapDate(tool.updatedAt),
+    // Ajouter les URLs des tags
+    tags.forEach(tag => {
+      xml += generateSitemapEntry(`${baseUrl}/tags/${tag.slug}/`, {
+        lastmod: formatSitemapDate(tag.updatedAt),
         changefreq: 'weekly',
         priority: '0.6'
       });
@@ -54,7 +51,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Erreur lors de la génération du sitemap-tools:', error);
-    return NextResponse.json({ error: 'Erreur lors de la génération du sitemap-tools' }, { status: 500 });
+    console.error('Erreur lors de la génération du sitemap-tags:', error);
+    return NextResponse.json({ error: 'Erreur lors de la génération du sitemap-tags' }, { status: 500 });
   }
 } 

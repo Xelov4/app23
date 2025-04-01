@@ -61,8 +61,13 @@ export function getImageWithFallback(url: string | null | undefined, fallback: s
   // Si l'URL est vide ou null, utiliser l'image par défaut
   if (!url) return fallback;
   
-  // Si l'URL pointe vers une image d'outil qui n'existe pas, utiliser un placeholder générique
-  if (url.includes('/images/tools/')) {
+  // Si l'URL ne commence pas par http ou /, considérer qu'elle est relative
+  if (!url.startsWith('http') && !url.startsWith('/')) {
+    return `/${url}`;
+  }
+  
+  // Si l'URL pointe vers une image d'outil qui n'existe pas ou est vide, utiliser un placeholder générique
+  if (url.includes('/images/tools/') && url.length < 20) {
     return fallback;
   }
   

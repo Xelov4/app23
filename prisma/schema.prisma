@@ -30,7 +30,6 @@ model Tool {
   rating            Float?
   reviewCount       Int?
   httpCode          Int?
-  httpChain         String?
   twitterUrl        String?
   instagramUrl      String?
   facebookUrl       String?
@@ -39,6 +38,7 @@ model Tool {
   isActive          Boolean             @default(true)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  httpChain         String?
   CategoriesOnTools CategoriesOnTools[]
   Review            Review[]
   TagsOnTools       TagsOnTools[]
