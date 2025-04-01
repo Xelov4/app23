@@ -42,3 +42,4 @@ next-env.d.ts
 
 # certificates - security sensitive
 /certs/*.pem
+logs/video-ia.access.log
