@@ -14,9 +14,9 @@ server {
     listen [::]:443 ssl http2;
     server_name video-ia.net www.video-ia.net;
     
-    # Configuration SSL avec les certificats locaux
-    ssl_certificate /root/app23/certs/fullchain.pem;
-    ssl_certificate_key /root/app23/certs/privkey.pem;
+    # Configuration SSL avec les certificats Let's Encrypt
+    ssl_certificate /etc/letsencrypt/live/video-ia.net-0001/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/video-ia.net-0001/privkey.pem;
     
     # Paramètres SSL recommandés
     ssl_protocols TLSv1.2 TLSv1.3;
