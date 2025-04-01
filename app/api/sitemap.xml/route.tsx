@@ -4,12 +4,8 @@ import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitem
 
 const prisma = new PrismaClient();
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
-    const url = new URL(request.url);
-    const host = url.host;
-    
     // Récupérer toutes les catégories
     const categories = await prisma.category.findMany({
       select: {
@@ -33,7 +29,7 @@ export async function GET(request: Request) {
     });
 
     // Générer le contenu XML du sitemap
-    const baseUrl = getSiteBaseUrl(host);
+    const baseUrl = getSiteBaseUrl();
     const now = formatSitemapDate(new Date());
 
     let xml = generateSitemapHeader();

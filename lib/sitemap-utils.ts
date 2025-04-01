@@ -4,13 +4,14 @@
  * @returns {string} URL de base du site avec protocole (sans slash final)
  */
 export function getSiteBaseUrl(host?: string): string {
-  // Permet de passer un host en paramètre (utile pour les tests)
-  const hostname = host || (process.env.NODE_ENV === 'development' ? 'localhost:3000' : 'www.video-ia.net');
+  // En production, toujours utiliser https://www.video-ia.net
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://www.video-ia.net';
+  }
   
-  // Déterminer si nous sommes en production ou en développement
-  const protocol = hostname.includes('localhost') ? 'http' : 'https';
-  
-  return `${protocol}://${hostname}`;
+  // En développement, utiliser le host fourni ou localhost:3000
+  const hostname = host || 'localhost:3000';
+  return `http://${hostname}`;
 }
 
 /**
