@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 
 // Dans un vrai système, ces informations seraient stockées dans une base de données
 // et les mots de passe seraient hachés et salés
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_USERNAME = 'video-admin';
+const ADMIN_PASSWORD = 'VideoIA2024!';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,17 +16,20 @@ export async function POST(request: NextRequest) {
       const sessionId = crypto.randomUUID();
       
       // Définition des cookies de session
-      const cookiesStore = await cookies();
+      const cookiesStore = cookies();
       cookiesStore.set('admin_session', sessionId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 7, // 7 jours au lieu de 24 heures
+        maxAge: 60 * 60 * 24 * 7, // 7 jours
         path: '/',
       });
       
       return NextResponse.json({ success: true });
     } else {
+      // Ajouter un délai pour prévenir le brute force
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       return NextResponse.json(
         { error: 'Identifiants incorrects' },
         { status: 401 }

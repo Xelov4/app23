@@ -113,27 +113,27 @@ export default async function Home() {
   return (
     <div className="bg-background min-h-screen">
       {/* En-tête simple */}
-      <section className="bg-gradient-to-r from-primary-600 to-primary-800 py-12 text-white">
+      <section className="bg-gradient-to-r from-primary-600 to-primary-800 py-12">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4 text-black">
               Tous les outils d'IA pour la vidéo
             </h1>
-            <p className="text-primary-100 mb-6">
+            <p className="text-black mb-6">
               Découvrez notre base de données complète des meilleurs outils d'IA pour la création, l'édition et la production vidéo.
             </p>
             <div className="relative max-w-xl mx-auto">
               <Input 
                 placeholder="Rechercher un outil..." 
-                className="pl-10 pr-4 py-2 w-full bg-white/10 backdrop-blur border-white/20 text-white placeholder:text-white/60 hover:bg-white/20 focus:bg-white/20"
+                className="pl-10 pr-4 py-2 w-full bg-white/10 backdrop-blur border-white/20 text-black placeholder:text-black/60 hover:bg-white/20 focus:bg-white/20"
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70" size={18} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black/70" size={18} />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 text-black">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Barre latérale des filtres */}
           <aside className="w-full md:w-64 lg:w-72 flex-shrink-0 space-y-6">

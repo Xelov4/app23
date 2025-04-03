@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Camera, Globe, Trash2, Save } from 'lucide-react';
 
 // Interface pour les outils
 interface Tool {
@@ -41,7 +42,6 @@ export default function ToolV2Page() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // États pour la pagination et le tri
   const [currentPage, setCurrentPage] = useState(1);
@@ -930,620 +930,542 @@ export default function ToolV2Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Sidebar */}
-        <div
-          className={`fixed inset-y-0 left-0 bg-white shadow-lg z-10 w-64 transform ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } transition-transform duration-300 ease-in-out`}
-        >
-          <div className="p-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Menu Admin</h2>
-            <ul className="space-y-2">
-              <li>
-                <Link 
-                  href="/admin/dashboard"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/bulk"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Bulk Actions
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/crawl"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Crawl Web
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/tool-v2"
-                  className="block w-full py-2 px-4 rounded bg-blue-100 text-blue-800"
-                >
-                  Tool V2
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/add/tool"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Ajouter un outil
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/add/category"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Ajouter une catégorie
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/add/tag"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Ajouter un tag
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/admin/add/usecase"
-                  className="block w-full py-2 px-4 rounded hover:bg-gray-100"
-                >
-                  Ajouter un cas d'usage
-                </Link>
-              </li>
-              <li>
-                <button
-                  onClick={handleLogout}
-                  className="block w-full text-left py-2 px-4 rounded hover:bg-gray-100 text-red-600"
-                >
-                  Déconnexion
-                </button>
-              </li>
-            </ul>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Gestion des outils</h1>
+          <p className="text-gray-500">Gérez tous les outils de la plateforme dans une interface avancée.</p>
         </div>
-
-        {/* Contenu principal */}
-        <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0"}`}>
-          <div className="p-8">
-            <div className="mb-6 flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-gray-800">
-                Tool Manager v2
-              </h1>
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="text-gray-500 focus:outline-none"
-              >
-                {sidebarOpen ? "← Masquer" : "→ Menu"}
-              </button>
-            </div>
-
-            {isLoading ? (
-              <div className="text-center py-10">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-                <p className="mt-2 text-gray-600">Chargement des outils...</p>
-              </div>
-            ) : error ? (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
-                {error}
-              </div>
-            ) : (
-              <div>
-                <p className="text-lg text-gray-600 mb-8">
-                  Cette page combine les fonctionnalités de crawl et de bulk actions pour une gestion plus efficace des outils.
-                </p>
-                
-                {/* Section des filtres et des options */}
-                <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-                  <h2 className="text-xl font-semibold mb-4">Filtres et Options</h2>
-                  
-                  <div className="flex flex-col space-y-6">
-                    {/* Recherche et filtres basiques */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Recherche */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Rechercher par nom ou URL..."
-                            className="w-full p-2 pl-10 border border-gray-300 rounded-md"
-                          />
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Filtre par statut d'activation */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Statut d'activation</label>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setActiveFilter('all')}
-                            className={`px-3 py-2 text-sm rounded-md flex-1 ${
-                              activeFilter === 'all' 
-                                ? 'bg-blue-100 text-blue-800 border border-blue-300' 
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            Tous
-                          </button>
-                          <button
-                            onClick={() => setActiveFilter('active')}
-                            className={`px-3 py-2 text-sm rounded-md flex-1 ${
-                              activeFilter === 'active' 
-                                ? 'bg-green-100 text-green-800 border border-green-300' 
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            Actifs
-                          </button>
-                          <button
-                            onClick={() => setActiveFilter('inactive')}
-                            className={`px-3 py-2 text-sm rounded-md flex-1 ${
-                              activeFilter === 'inactive' 
-                                ? 'bg-red-100 text-red-800 border border-red-300' 
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            Inactifs
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* Éléments par page */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Éléments par page</label>
-                        <select
-                          value={itemsPerPage}
-                          onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                          className="w-full p-2 border border-gray-300 rounded-md"
-                        >
-                          {PAGE_SIZE_OPTIONS.map(size => (
-                            <option key={size} value={size}>{size} outils</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    
-                    {/* Filtres avancés */}
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <h3 className="text-md font-semibold">Filtres avancés</h3>
-                        <div className="ml-4 flex">
-                          <button
-                            onClick={() => {
-                              setHttpFilters({
-                                dns: true,
-                                success: true,
-                                redirect: true,
-                                clientError: true,
-                                serverError: true,
-                                none: true
-                              });
-                              setImageFilters({
-                                exists: true,
-                                missing: true
-                              });
-                            }}
-                            className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                          >
-                            Tout sélectionner
-                          </button>
-                          <button
-                            onClick={() => {
-                              setHttpFilters({
-                                dns: false,
-                                success: false,
-                                redirect: false,
-                                clientError: false,
-                                serverError: false,
-                                none: false
-                              });
-                              setImageFilters({
-                                exists: false,
-                                missing: false
-                              });
-                            }}
-                            className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 ml-2"
-                          >
-                            Tout désélectionner
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                        {/* Filtres HTTP */}
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <h4 className="text-sm font-medium mb-2 text-gray-700">Statut HTTP</h4>
-                          <div className="grid grid-cols-2 gap-2">
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.dns}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, dns: !prev.dns }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">DNS non résolu</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.success}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, success: !prev.success }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">2xx (Succès)</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.redirect}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, redirect: !prev.redirect }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">3xx (Redirection)</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.clientError}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, clientError: !prev.clientError }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">4xx (Erreur client)</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.serverError}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, serverError: !prev.serverError }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">5xx (Erreur serveur)</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={httpFilters.none}
-                                onChange={() => setHttpFilters(prev => ({ ...prev, none: !prev.none }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">Non vérifié</span>
-                            </label>
-                          </div>
-                        </div>
-                        
-                        {/* Filtres d'image */}
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <h4 className="text-sm font-medium mb-2 text-gray-700">Statut d'image</h4>
-                          <div className="grid grid-cols-2 gap-2">
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={imageFilters.exists}
-                                onChange={() => setImageFilters(prev => ({ ...prev, exists: !prev.exists }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">Avec image</span>
-                            </label>
-                            <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={imageFilters.missing}
-                                onChange={() => setImageFilters(prev => ({ ...prev, missing: !prev.missing }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">Sans image</span>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Sommaire */}
-                <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-                  <h2 className="text-xl font-semibold mb-4">Sommaire</h2>
-                  <div className="flex flex-wrap gap-4">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-sm text-blue-700">Total des outils</p>
-                      <p className="text-2xl font-bold text-blue-800">{tools.length}</p>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-sm text-green-700">Outils filtrés</p>
-                      <p className="text-2xl font-bold text-green-800">{filteredTools.length}</p>
-                    </div>
-                    <div className="bg-purple-50 p-3 rounded-lg">
-                      <p className="text-sm text-purple-700">Outils sélectionnés</p>
-                      <p className="text-2xl font-bold text-purple-800">{selectedTools.size}</p>
-                    </div>
-                    <div className="bg-amber-50 p-3 rounded-lg">
-                      <p className="text-sm text-amber-700">Page actuelle</p>
-                      <p className="text-2xl font-bold text-amber-800">{currentPage} / {totalPages}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Actions */}
-                <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-                  <h2 className="text-xl font-semibold mb-4">Actions</h2>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={handleStartScreenshots}
-                      disabled={isRunning || isCrawling || isPurging}
-                      className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 ${
-                        isRunning || isCrawling || isPurging ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {isRunning 
-                        ? `Capture en cours... (${sessionCompleted}/${totalToProcess})` 
-                        : 'Capturer les écrans'}
-                    </button>
-                    
-                    <button
-                      onClick={handleStartCrawl}
-                      disabled={isRunning || isCrawling || isPurging}
-                      className={`bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 ${
-                        isRunning || isCrawling || isPurging ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {isCrawling 
-                        ? `Crawl en cours... (${sessionCompleted}/${totalToProcess})` 
-                        : 'Crawler les URLs'}
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Tableau des outils */}
-                <div className="bg-white shadow-md rounded-lg mb-8 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center">
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectAll}
-                                  onChange={() => setSelectAll(!selectAll)}
-                                  className="mr-2"
-                                  title="Sélectionner tous les éléments affichés"
-                                />
-                                <button 
-                                  onClick={() => {
-                                    setSortColumn('name');
-                                    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                                  }}
-                                  className="hover:text-gray-700 flex items-center"
-                                >
-                                  Nom 
-                                  {sortColumn === 'name' && (
-                                    <span className="ml-1">
-                                      {sortDirection === 'asc' ? '↑' : '↓'}
-                                    </span>
-                                  )}
-                                </button>
-                              </div>
-                              <span className="ml-2 text-xs text-gray-400 font-normal hidden md:inline">
-                                (sélectionne la page courante)
-                              </span>
-                            </div>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <button 
-                              onClick={() => {
-                                setSortColumn('websiteUrl');
-                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                              }}
-                              className="hover:text-gray-700 flex items-center"
-                            >
-                              URL 
-                              {sortColumn === 'websiteUrl' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? '↑' : '↓'}
-                                </span>
-                              )}
-                            </button>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <button 
-                              onClick={() => {
-                                setSortColumn('httpCode');
-                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                              }}
-                              className="hover:text-gray-700 flex items-center"
-                            >
-                              HTTP 
-                              {sortColumn === 'httpCode' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? '↑' : '↓'}
-                                </span>
-                              )}
-                            </button>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Logo
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <button 
-                              onClick={() => {
-                                setSortColumn('status');
-                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                              }}
-                              className="hover:text-gray-700 flex items-center"
-                            >
-                              Statut 
-                              {sortColumn === 'status' && (
-                                <span className="ml-1">
-                                  {sortDirection === 'asc' ? '↑' : '↓'}
-                                </span>
-                              )}
-                            </button>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paginatedTools.map((tool) => (
-                          <tr key={tool.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTools.has(tool.id)}
-                                  onChange={() => toggleToolSelection(tool.id)}
-                                  className="mr-2"
-                                />
-                                <div className="text-sm font-medium text-gray-900">{tool.name}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500 max-w-[250px] truncate">
-                                <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
-                                  {tool.websiteUrl}
-                                </a>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {tool.logoUrl ? (
-                                <div className="w-10 h-10 rounded-md overflow-hidden">
-                                  <img 
-                                    src={tool.logoUrl} 
-                                    alt={`Logo de ${tool.name}`} 
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded ${getToggleStatusClass(tool.isActive, tool.toggleStatus)}`}>
-                                {tool.toggleStatus === 'pending' 
-                                  ? 'En cours...' 
-                                  : (tool.isActive ? 'Actif' : 'Inactif')}
-                              </span>
-                              
-                              {tool.status && tool.status !== 'idle' && (
-                                <span className={`ml-2 px-2 py-1 rounded ${getProcessStatusClass(tool.status)}`}>
-                                  {tool.status === 'pending' ? 'En cours' : 
-                                   tool.status === 'success' ? 'Succès' : 
-                                   tool.status === 'error' ? 'Erreur' : ''}
-                                </span>
-                              )}
-                              
-                              {tool.dbUpdated && (
-                                <span className="ml-2 px-2 py-1 rounded bg-purple-100 text-purple-800">
-                                  DB mise à jour
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => toggleToolStatus(tool.slug, tool.isActive)}
-                                  className="text-blue-600 hover:text-blue-800"
-                                  disabled={tool.toggleStatus === 'pending'}
-                                >
-                                  {tool.isActive ? 'Désactiver' : 'Activer'}
-                                </button>
-                                <Link
-                                  href={`/admin/modify/tools/${tool.slug}`}
-                                  className="text-green-600 hover:text-green-800"
-                                >
-                                  Éditer
-                                </Link>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        
-                        {paginatedTools.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                              Aucun outil trouvé avec les filtres actuels.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                
-                {/* Pagination */}
-                <div className="flex justify-center mt-6">
-                  <nav className="inline-flex rounded-md shadow">
-                    <button
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage === 1}
-                      className={`px-3 py-2 rounded-l-md border ${
-                        currentPage === 1
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-blue-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      &laquo;
-                    </button>
-                    
-                    {paginationItems.map(page => (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        className={`px-3 py-2 border-t border-b ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-blue-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                    
-                    <button
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-2 rounded-r-md border ${
-                        currentPage === totalPages
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-blue-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      &raquo;
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            )}
-          </div>
+        
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleStartScreenshots}
+            disabled={isRunning || isCompleted || selectedTools.size === 0}
+            className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
+              isRunning || isCompleted || selectedTools.size === 0
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <Camera className="h-4 w-4" />
+            <span>Capturer</span>
+          </button>
+          
+          <button
+            onClick={handleStartCrawl}
+            disabled={isCrawling || selectedTools.size === 0}
+            className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
+              isCrawling || selectedTools.size === 0
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <Globe className="h-4 w-4" />
+            <span>Tester URLs</span>
+          </button>
+          
+          <button
+            onClick={handlePurgeImages}
+            disabled={isPurging}
+            className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
+              isPurging
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Purger</span>
+          </button>
+          
+          <button
+            onClick={handleUpdateDatabase}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center space-x-2"
+          >
+            <Save className="h-4 w-4" />
+            <span>Enregistrer</span>
+          </button>
         </div>
       </div>
+      
+      {isLoading ? (
+        <div className="text-center py-10">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+          <p className="mt-2 text-gray-600">Chargement des outils...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
+          {error}
+        </div>
+      ) : (
+        <div>
+          <p className="text-lg text-gray-600 mb-8">
+            Cette page combine les fonctionnalités de crawl et de bulk actions pour une gestion plus efficace des outils.
+          </p>
+          
+          {/* Section des filtres et des options */}
+          <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Filtres et Options</h2>
+            
+            <div className="flex flex-col space-y-6">
+              {/* Recherche et filtres basiques */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Recherche */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Rechercher par nom ou URL..."
+                      className="w-full p-2 pl-10 border border-gray-300 rounded-md"
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Filtre par statut d'activation */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut d'activation</label>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setActiveFilter('all')}
+                      className={`px-3 py-2 text-sm rounded-md flex-1 ${
+                        activeFilter === 'all' 
+                          ? 'bg-blue-100 text-blue-800 border border-blue-300' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      Tous
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('active')}
+                      className={`px-3 py-2 text-sm rounded-md flex-1 ${
+                        activeFilter === 'active' 
+                          ? 'bg-green-100 text-green-800 border border-green-300' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      Actifs
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('inactive')}
+                      className={`px-3 py-2 text-sm rounded-md flex-1 ${
+                        activeFilter === 'inactive' 
+                          ? 'bg-red-100 text-red-800 border border-red-300' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      Inactifs
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Éléments par page */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Éléments par page</label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  >
+                    {PAGE_SIZE_OPTIONS.map(size => (
+                      <option key={size} value={size}>{size} outils</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* Filtres avancés */}
+              <div>
+                <div className="flex items-center mb-2">
+                  <h3 className="text-md font-semibold">Filtres avancés</h3>
+                  <div className="ml-4 flex">
+                    <button
+                      onClick={() => {
+                        setHttpFilters({
+                          dns: true,
+                          success: true,
+                          redirect: true,
+                          clientError: true,
+                          serverError: true,
+                          none: true
+                        });
+                        setImageFilters({
+                          exists: true,
+                          missing: true
+                        });
+                      }}
+                      className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                    >
+                      Tout sélectionner
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHttpFilters({
+                          dns: false,
+                          success: false,
+                          redirect: false,
+                          clientError: false,
+                          serverError: false,
+                          none: false
+                        });
+                        setImageFilters({
+                          exists: false,
+                          missing: false
+                        });
+                      }}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 ml-2"
+                    >
+                      Tout désélectionner
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                  {/* Filtres HTTP */}
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium mb-2 text-gray-700">Statut HTTP</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.dns}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, dns: !prev.dns }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">DNS non résolu</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.success}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, success: !prev.success }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">2xx (Succès)</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.redirect}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, redirect: !prev.redirect }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">3xx (Redirection)</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.clientError}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, clientError: !prev.clientError }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">4xx (Erreur client)</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.serverError}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, serverError: !prev.serverError }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">5xx (Erreur serveur)</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={httpFilters.none}
+                          onChange={() => setHttpFilters(prev => ({ ...prev, none: !prev.none }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Non vérifié</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Filtres d'image */}
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="text-sm font-medium mb-2 text-gray-700">Statut d'image</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={imageFilters.exists}
+                          onChange={() => setImageFilters(prev => ({ ...prev, exists: !prev.exists }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Avec image</span>
+                      </label>
+                      <label className="flex items-center bg-white p-2 rounded border border-gray-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={imageFilters.missing}
+                          onChange={() => setImageFilters(prev => ({ ...prev, missing: !prev.missing }))}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Sans image</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Sommaire */}
+          <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Sommaire</h2>
+            <div className="flex flex-wrap gap-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-700">Total des outils</p>
+                <p className="text-2xl font-bold text-blue-800">{tools.length}</p>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-green-700">Outils filtrés</p>
+                <p className="text-2xl font-bold text-green-800">{filteredTools.length}</p>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <p className="text-sm text-purple-700">Outils sélectionnés</p>
+                <p className="text-2xl font-bold text-purple-800">{selectedTools.size}</p>
+              </div>
+              <div className="bg-amber-50 p-3 rounded-lg">
+                <p className="text-sm text-amber-700">Page actuelle</p>
+                <p className="text-2xl font-bold text-amber-800">{currentPage} / {totalPages}</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tableau des outils */}
+          <div className="bg-white shadow-md rounded-lg mb-8 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={() => setSelectAll(!selectAll)}
+                            className="mr-2"
+                            title="Sélectionner tous les éléments affichés"
+                          />
+                          <button 
+                            onClick={() => {
+                              setSortColumn('name');
+                              setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                            }}
+                            className="hover:text-gray-700 flex items-center"
+                          >
+                            Nom 
+                            {sortColumn === 'name' && (
+                              <span className="ml-1">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                        <span className="ml-2 text-xs text-gray-400 font-normal hidden md:inline">
+                          (sélectionne la page courante)
+                        </span>
+                      </div>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button 
+                        onClick={() => {
+                          setSortColumn('websiteUrl');
+                          setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                        }}
+                        className="hover:text-gray-700 flex items-center"
+                      >
+                        URL 
+                        {sortColumn === 'websiteUrl' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button 
+                        onClick={() => {
+                          setSortColumn('httpCode');
+                          setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                        }}
+                        className="hover:text-gray-700 flex items-center"
+                      >
+                        HTTP 
+                        {sortColumn === 'httpCode' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Logo
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button 
+                        onClick={() => {
+                          setSortColumn('status');
+                          setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                        }}
+                        className="hover:text-gray-700 flex items-center"
+                      >
+                        Statut 
+                        {sortColumn === 'status' && (
+                          <span className="ml-1">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedTools.map((tool) => (
+                    <tr key={tool.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedTools.has(tool.id)}
+                            onChange={() => toggleToolSelection(tool.id)}
+                            className="mr-2"
+                          />
+                          <div className="text-sm font-medium text-gray-900">{tool.name}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500 max-w-[250px] truncate">
+                          <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
+                            {tool.websiteUrl}
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {renderHttpStatus(tool.httpCode, tool.httpChain)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {tool.logoUrl ? (
+                          <div className="w-10 h-10 rounded-md overflow-hidden">
+                            <img 
+                              src={tool.logoUrl} 
+                              alt={`Logo de ${tool.name}`} 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded ${getToggleStatusClass(tool.isActive, tool.toggleStatus)}`}>
+                          {tool.toggleStatus === 'pending' 
+                            ? 'En cours...' 
+                            : (tool.isActive ? 'Actif' : 'Inactif')}
+                        </span>
+                        
+                        {tool.status && tool.status !== 'idle' && (
+                          <span className={`ml-2 px-2 py-1 rounded ${getProcessStatusClass(tool.status)}`}>
+                            {tool.status === 'pending' ? 'En cours' : 
+                             tool.status === 'success' ? 'Succès' : 
+                             tool.status === 'error' ? 'Erreur' : ''}
+                          </span>
+                        )}
+                        
+                        {tool.dbUpdated && (
+                          <span className="ml-2 px-2 py-1 rounded bg-purple-100 text-purple-800">
+                            DB mise à jour
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => toggleToolStatus(tool.slug, tool.isActive)}
+                            className="text-blue-600 hover:text-blue-800"
+                            disabled={tool.toggleStatus === 'pending'}
+                          >
+                            {tool.isActive ? 'Désactiver' : 'Activer'}
+                          </button>
+                          <Link
+                            href={`/admin/modify/tools/${tool.slug}`}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            Éditer
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {paginatedTools.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        Aucun outil trouvé avec les filtres actuels.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Pagination */}
+          <div className="flex justify-center mt-6">
+            <nav className="inline-flex rounded-md shadow">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-2 rounded-l-md border ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                &laquo;
+              </button>
+              
+              {paginationItems.map(page => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 border-t border-b ${
+                    currentPage === page
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-blue-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-2 rounded-r-md border ${
+                  currentPage === totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-blue-600 hover:bg-gray-50'
+                }`}
+              >
+                &raquo;
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

@@ -22,19 +22,19 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100, 250, 500];
 const BATCH_SIZE = 5; // Traiter 5 outils à la fois
 const MAX_PROCESSING_ITEMS = 50; // Limite de 50 outils par session (au lieu de 10)
 
-export default function BulkActionsPage() {
+export default function BulkPage() {
+  const router = useRouter();
+  
+  // États généraux
   const [tools, setTools] = useState<Tool[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // État pour le processing
   const [isRunning, setIsRunning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeProcesses, setActiveProcesses] = useState(0);
-  const [processingQueue, setProcessingQueue] = useState<number[]>([]);
-  const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
-  const [isPurging, setIsPurging] = useState(false);
-  const [sessionCompleted, setSessionCompleted] = useState<number>(0);
-  const [totalToProcess, setTotalToProcess] = useState<number>(0);
+  const [sessionCompleted, setSessionCompleted] = useState(0);
+  const [selectedTools, setSelectedTools] = useState<Set<number>>(new Set());
   
   // Nouveaux états pour les filtres et options
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -649,460 +649,146 @@ export default function BulkActionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-10 w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0`}
-      >
-        <div className="p-4 font-bold text-xl border-b border-gray-700">
-          Administration
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Traitement par lot</h1>
+          <p className="text-gray-500">Traitez plusieurs outils en même temps pour mettre à jour leur statut ou générer des captures d'écran.</p>
         </div>
-
-        <div className="p-4">
-          {/* Menu Content */}
-          <div className="mb-6">
-            <h2 className="text-lg font-medium mb-3 text-gray-300">Contenu</h2>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/admin/dashboard"
-                  className="flex items-center py-2 px-3 rounded hover:bg-gray-700"
-                >
-                  <span className="mr-2">🛠️</span>
-                  <span>Outils</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/dashboard"
-                  className="flex items-center py-2 px-3 rounded hover:bg-gray-700"
-                >
-                  <span className="mr-2">📂</span>
-                  <span>Catégories</span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/dashboard"
-                  className="flex items-center py-2 px-3 rounded hover:bg-gray-700"
-                >
-                  <span className="mr-2">🏷️</span>
-                  <span>Tags</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Menu Actions */}
-          <div className="mb-6">
-            <h2 className="text-lg font-medium mb-3 text-gray-300">Actions</h2>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/admin/bulk"
-                  className="flex items-center py-2 px-3 rounded bg-blue-600"
-                >
-                  <span className="mr-2">📷</span>
-                  <span>Détection HTTP</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="text-sm text-gray-300 hover:text-white">
-              Voir le site
-            </Link>
+        <div className="flex space-x-3">
           <button
-              onClick={handleLogout}
-              className="text-sm text-red-400 hover:text-red-300"
-            >
-              Déconnexion
-          </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Toggle sidebar button for mobile */}
-          <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed top-4 z-50 p-2 bg-gray-800 text-white rounded-r-md md:hidden ${sidebarOpen ? 'left-64' : 'left-0'}`}
+            onClick={handleStartProcessing}
+            disabled={isRunning || isCompleted || selectedTools.size === 0}
+            className={`px-4 py-2 rounded-md ${
+              isRunning || isCompleted || selectedTools.size === 0
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
-        {sidebarOpen ? '←' : '→'}
+            {isRunning 
+              ? `Traitement en cours... (${sessionCompleted}/${selectedTools.size})` 
+              : 'Lancer le traitement'}
           </button>
-
-      {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <header className="bg-white shadow">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Administration Video-IA.net</h1>
-            </div>
-          </div>
-        </header>
-
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h1 className="text-2xl font-bold">Détection HTTP & Capture d'écran</h1>
-            </div>
-
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Total d'outils</h3>
-                <p className="text-3xl font-bold text-gray-800">{totalTools}</p>
-              </div>
-              
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Captures réussies</h3>
-                <p className="text-3xl font-bold text-green-600">{successfulScreenshots}</p>
-              </div>
-              
-              <div className="bg-red-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Captures échouées</h3>
-                <p className="text-3xl font-bold text-red-600">{failedScreenshots}</p>
-              </div>
-              
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">En cours / En attente</h3>
-                <p className="text-3xl font-bold text-blue-600">{activeProcesses} / {pendingScreenshots}</p>
-              </div>
-            </div>
-
-            {/* Filtres et options */}
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Filtre par statut HTTP */}
-                <div>
-                  <h3 className="text-md font-semibold mb-3">Filtrer par statut HTTP:</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.dns} 
-                        onChange={() => setHttpFilters({...httpFilters, dns: !httpFilters.dns})}
-                        className="form-checkbox h-4 w-4 text-blue-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">DNS non résolu</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.success} 
-                        onChange={() => setHttpFilters({...httpFilters, success: !httpFilters.success})}
-                        className="form-checkbox h-4 w-4 text-green-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Succès (2xx)</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.redirect} 
-                        onChange={() => setHttpFilters({...httpFilters, redirect: !httpFilters.redirect})}
-                        className="form-checkbox h-4 w-4 text-blue-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Redirection (3xx)</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.clientError} 
-                        onChange={() => setHttpFilters({...httpFilters, clientError: !httpFilters.clientError})}
-                        className="form-checkbox h-4 w-4 text-orange-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Erreur client (4xx)</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.serverError} 
-                        onChange={() => setHttpFilters({...httpFilters, serverError: !httpFilters.serverError})}
-                        className="form-checkbox h-4 w-4 text-red-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Erreur serveur (5xx)</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={httpFilters.none} 
-                        onChange={() => setHttpFilters({...httpFilters, none: !httpFilters.none})}
-                        className="form-checkbox h-4 w-4 text-gray-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Non vérifiés</span>
-                    </label>
-                  </div>
-                  
-                  <h3 className="text-md font-semibold mb-3 mt-4">Filtrer par statut image:</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={imageFilters.exists} 
-                        onChange={() => setImageFilters({...imageFilters, exists: !imageFilters.exists})}
-                        className="form-checkbox h-4 w-4 text-green-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Image existante</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={imageFilters.missing} 
-                        onChange={() => setImageFilters({...imageFilters, missing: !imageFilters.missing})}
-                        className="form-checkbox h-4 w-4 text-red-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Image non existante</span>
-                    </label>
-                  </div>
-                  
-                  <div className="mt-2 text-sm text-gray-500">
-                    Outils filtrés: <span className="font-semibold">{filteredToolsCount}</span> sur {totalTools}
-                  </div>
-                </div>
-                
-                {/* Options de pagination */}
-                <div>
-                  <h3 className="text-md font-semibold mb-3">Éléments par page:</h3>
-                  <select 
-                    value={itemsPerPage}
-                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                    className="block w-full md:w-48 p-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                  >
-                    {PAGE_SIZE_OPTIONS.map(size => (
-                      <option key={size} value={size}>{size} outils par page</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mb-6">
-              <div className="space-x-2">
-                <button
-                  onClick={handleStart}
-                  disabled={isRunning}
-                  className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 ${
-                    isRunning ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isRunning 
-                    ? `Traitement en cours... (${sessionCompleted}/${totalToProcess})` 
-                    : `Lancer la détection pour ${selectedToolsCount > MAX_PROCESSING_ITEMS ? MAX_PROCESSING_ITEMS + '/' + selectedToolsCount : selectedToolsCount} outils`}
-                </button>
-                
-                <button
-                  onClick={handlePurgeImages}
-                  disabled={isRunning || isPurging}
-                  className={`bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 ${
-                    isRunning || isPurging ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isPurging ? 'Purge en cours...' : 'Purger les images'}
-                </button>
-                
-                {isCompleted && (
-                  <button
-                    onClick={handleContinueProcessing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Continuer le traitement
-                  </button>
-                )}
-              </div>
-
-              {isCompleted && (
-                <button
-                  onClick={handleUpdateDatabase}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                >
-                  Mettre à jour la base de données
-                </button>
-              )}
-            </div>
-
-            {/* Indicateur de progression pour la session */}
-            {isRunning && (
-              <div className="mb-4 bg-blue-50 p-4 rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span>Progression de la session actuelle:</span>
-                  <span>{sessionCompleted} sur {Math.min(totalToProcess, MAX_PROCESSING_ITEMS)} outils</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
-                  <div 
-                    className="bg-blue-600 h-4 rounded-full" 
-                    style={{ 
-                      width: `${totalToProcess > 0 ? (sessionCompleted / Math.min(totalToProcess, MAX_PROCESSING_ITEMS)) * 100 : 0}%` 
-                    }}
-                  ></div>
-                </div>
-                <div className="text-sm text-gray-500 mt-2">
-                  Limite de {MAX_PROCESSING_ITEMS} outils par session. 
-                  {totalToProcess > MAX_PROCESSING_ITEMS && 
-                    ` Il restera ${totalToProcess - MAX_PROCESSING_ITEMS} outils à traiter.`
-                  }
-                </div>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <div className="mb-2 grid grid-cols-13 gap-2 font-bold text-sm">
-                <div className="col-span-1">
-                  <label className="inline-flex items-center">
-                    <input 
-                      type="checkbox" 
-                      onChange={handleSelectAllTools}
-                      checked={paginatedTools.length > 0 && paginatedTools.every(tool => selectedTools.has(tool.id))}
-                      className="form-checkbox h-4 w-4 text-blue-600"
-                    />
-                  </label>
-                </div>
-                <div className="col-span-3">Nom</div>
-                <div className="col-span-4">URL</div>
-                <div className="col-span-2">Statut HTTP</div>
-                <div className="col-span-2">Capture</div>
-                <div className="col-span-1">Actions</div>
-              </div>
-              
-          {paginatedTools.map(tool => (
-                <div key={tool.id} className="grid grid-cols-13 gap-2 mb-2 p-2 border rounded-lg items-center">
-                  <div className="col-span-1">
-                    <label className="inline-flex items-center">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedTools.has(tool.id)}
-                        onChange={() => handleToolSelection(tool.id)}
-                        className="form-checkbox h-4 w-4 text-blue-600"
-                      />
-                    </label>
-                  </div>
-                  <div className="col-span-3">
-                    <p className="font-medium text-sm">{tool.name}</p>
-                    <p className="text-xs text-gray-500">{tool.slug}</p>
-                  </div>
-                  <div className="col-span-4">
-                    <a 
-                      href={tool.websiteUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs text-blue-600 hover:underline break-all"
-                    >
-                      {tool.websiteUrl}
-                    </a>
-                  </div>
-                  <div className="col-span-2">
-                    {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                  </div>
-                  <div className="col-span-2">
-                    {tool.status === 'loading' ? (
-                      <div className="flex items-center">
-                        <svg className="animate-spin h-5 w-5 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span className="text-blue-500">Chargement...</span>
-                      </div>
-                    ) : tool.status === 'success' ? (
-                      <div className="flex flex-col items-start space-y-2">
-                        <span className={`px-2 py-1 rounded ${tool.httpCode === 200 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {tool.httpCode === 200 ? 'success' : 'failed'}
-                        </span>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Status HTTP: {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                        </div>
-                        <img 
-                          src={tool.logoUrl} 
-                          alt={tool.name} 
-                          className="max-h-16 max-w-full object-contain"
-                        />
-                      </div>
-                    ) : tool.status === 'error' ? (
-                      <div className="flex flex-col items-start space-y-2">
-                        <span className="px-2 py-1 rounded bg-red-100 text-red-800">failed</span>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Status HTTP: {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                        </div>
-                        <span className="text-red-500 text-sm">{tool.errorCode}</span>
-                      </div>
-                    ) : tool.logoUrl ? (
-                      <div className="flex flex-col items-start space-y-2">
-                        <span className="px-2 py-1 rounded bg-blue-100 text-blue-800">Image existante</span>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Status HTTP: {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                        </div>
-                        <img 
-                          src={tool.logoUrl} 
-                          alt={tool.name} 
-                          className="max-h-16 max-w-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-start space-y-2">
-                        <span className="text-gray-400">Aucune image</span>
-                        <div className="text-xs text-gray-600 mt-1">
-                          Status HTTP: {renderHttpStatus(tool.httpCode, tool.httpChain)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="col-span-1">
-                    {tool.logoUrl && (
-                      <Link 
-                        href={`/admin/modify/tools/${tool.slug}`}
-                        className="text-blue-600 hover:text-blue-900 text-xl"
-                        title="Modifier"
-                      >
-                        ✏️
-                      </Link>
-                    )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-            {/* Pagination simplifiée */}
-            <div className="mt-6 flex justify-center items-center space-x-2">
-              <button
-                onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1 rounded ${
-                  currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                ←
-              </button>
-              
-              {paginationItems.map(page => (
-            <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {page}
-            </button>
-          ))}
-              
-              <button
-                onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1 rounded ${
-                  currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                →
-              </button>
-            </div>
-            
-            <div className="mt-2 text-center text-xs text-gray-500">
-              Page {currentPage} sur {totalPages}
-            </div>
-          </div>
         </div>
       </div>
+
+      {isLoading ? (
+        <div className="text-center py-10">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+          <p className="mt-2 text-gray-600">Chargement des outils...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          {error}
+        </div>
+      ) : (
+        <div>
+          <p className="text-lg text-gray-600 mb-6">
+            Sélectionnez les outils à traiter et cliquez sur "Lancer le traitement".
+          </p>
+
+          {/* Tableau des outils */}
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedTools.size === tools.length && tools.length > 0}
+                      onChange={handleSelectAll}
+                      className="mr-2"
+                    />
+                    Nom
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    URL
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {tools.map((tool) => (
+                  <tr key={tool.id} className={tool.status === 'success' ? 'bg-green-50' : tool.status === 'error' ? 'bg-red-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedTools.has(tool.id)}
+                          onChange={() => handleToolSelection(tool.id)}
+                          disabled={isRunning}
+                          className="mr-2"
+                        />
+                        <div className="text-sm font-medium text-gray-900">{tool.name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500 max-w-xs truncate">
+                        <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
+                          {tool.websiteUrl}
+                        </a>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {tool.status === 'pending' && (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          En cours...
+                        </span>
+                      )}
+                      {tool.status === 'success' && (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Succès
+                        </span>
+                      )}
+                      {tool.status === 'error' && (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Erreur: {tool.errorMessage}
+                        </span>
+                      )}
+                      {!tool.status && (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          En attente
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                
+                {tools.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
+                      Aucun outil disponible.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Sommaire */}
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Résumé du traitement</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-700 mb-1">Total</p>
+                <p className="text-2xl font-bold text-blue-800">{tools.length}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <p className="text-sm text-purple-700 mb-1">Sélectionnés</p>
+                <p className="text-2xl font-bold text-purple-800">{selectedTools.size}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-green-700 mb-1">Traités avec succès</p>
+                <p className="text-2xl font-bold text-green-800">
+                  {tools.filter(t => t.status === 'success').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

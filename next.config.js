@@ -61,13 +61,12 @@ const nextConfig = {
     // Ignorer les erreurs TypeScript lors du build
     ignoreBuildErrors: true,
   },
-  // Configuration additionnelle pour la production
-  output: 'standalone',
-  trailingSlash: true,
   // Optimisation pour les moteurs de recherche
   poweredByHeader: false,
   // Compression pour de meilleures performances
   compress: true,
+  // Trailing slash pour une meilleure compatibilité SEO
+  trailingSlash: true,
   // Optimisation de la mise en cache
   headers: async () => [
     {

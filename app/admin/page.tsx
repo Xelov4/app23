@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, LogIn, AlertCircle, Shield } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   // Vérifier si déjà connecté
@@ -61,53 +63,101 @@ export default function AdminLoginPage() {
 
   // Rendu du formulaire de connexion
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Administration Video-IA.net</h1>
-        {error && (
-          <div className="mb-4 bg-red-100 p-3 rounded text-red-700">
-            {error}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 px-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+        <div className="bg-blue-600 p-6 text-white">
+          <div className="flex items-center justify-center">
+            <Shield className="h-8 w-8 mr-2" />
+            <h1 className="text-2xl font-bold">Administration</h1>
           </div>
-        )}
-        <form onSubmit={handleLogin}>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2" htmlFor="username">
-              Nom d'utilisateur
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
-              required
+          <p className="text-center text-blue-100 mt-1">video-ia.net</p>
+        </div>
+        
+        <div className="p-6">
+          {error && (
+            <div className="mb-6 bg-red-50 p-4 rounded-lg flex items-start text-red-700">
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="username">
+                Nom d'utilisateur
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                required
+                disabled={isLoading}
+                placeholder="Entrez votre nom d'utilisateur"
+                autoComplete="username"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="password">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 pr-10"
+                  required
+                  disabled={isLoading}
+                  placeholder="Entrez votre mot de passe"
+                  autoComplete="current-password"
+                />
+                <button 
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? 
+                    <EyeOff className="h-5 w-5 text-gray-500" /> : 
+                    <Eye className="h-5 w-5 text-gray-500" />
+                  }
+                </button>
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              className={`w-full flex items-center justify-center bg-blue-600 text-white px-4 py-2.5 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${
+                isLoading ? 'opacity-80 cursor-not-allowed' : ''
+              }`}
               disabled={isLoading}
-            />
+            >
+              {isLoading ? (
+                <>
+                  <span className="mr-2 h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                  Connexion en cours...
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-5 w-5 mr-2" />
+                  Connexion
+                </>
+              )}
+            </button>
+          </form>
+          
+          <div className="mt-6 pt-5 border-t border-gray-200">
+            <p className="text-sm text-gray-600 mb-1 font-medium">Informations de connexion :</p>
+            <div className="rounded-md bg-blue-50 p-3 text-xs text-blue-700">
+              <p className="mb-1"><span className="font-semibold">Nom d'utilisateur :</span> video-admin</p>
+              <p><span className="font-semibold">Mot de passe :</span> VideoIA2024!</p>
+              <p className="mt-2 text-xxs italic">Note: Ces informations sont généralement masquées en production.</p>
+            </div>
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2" htmlFor="password">
-              Mot de passe
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
-              required
-              disabled={isLoading}
-            />
-          </div>
-          <button
-            type="submit"
-            className={`w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 ${
-              isLoading ? 'opacity-70 cursor-not-allowed' : ''
-            }`}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Connexion en cours...' : 'Se connecter'}
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );
