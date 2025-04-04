@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         setAuthenticated(data.authenticated);
         
         // Si l'utilisateur n'est pas connecté et qu'il n'est pas sur la page de connexion
-        if (!data.authenticated && pathname !== '/admin') {
+        if (!data.authenticated && pathname !== '/admin' && pathname !== '/admin/') {
           router.push('/admin');
         }
       } catch (err) {
@@ -62,7 +62,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Si non authentifié et sur la page de connexion, afficher le contenu sans layout
-  if (!authenticated && pathname === '/admin') {
+  if (!authenticated && (pathname === '/admin' || pathname === '/admin/')) {
     return <>{children}</>;
   }
 
@@ -91,6 +91,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           title: 'Gérer les outils',
           href: '/admin/tool-v2',
           icon: <Settings className="h-5 w-5" />,
+        },
+        {
+          title: 'Toutes les catégories',
+          href: '/admin/categories',
+          icon: <Layers className="h-5 w-5" />,
+          new: true,
         },
         {
           title: 'Enrichir les outils',

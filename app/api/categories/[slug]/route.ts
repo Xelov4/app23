@@ -7,16 +7,32 @@ export async function GET(request: NextRequest, props: { params: Promise<{ slug:
   try {
     const slug = params.slug;
 
-    // Récupérer la catégorie avec le slug spécifié
+    // Récupérer la catégorie avec le slug spécifié, incluant le nombre d'outils associés
     const category = await db.category.findUnique({
-      where: { slug }
+      where: { slug },
+      include: {
+        _count: {
+          select: {
+            CategoriesOnTools: true
+          }
+        }
+      }
     });
 
     if (!category) {
       return NextResponse.json({ error: 'Catégorie non trouvée' }, { status: 404 });
     }
 
-    return NextResponse.json(category);
+    // Formater la réponse pour inclure le nombre d'outils
+    const categoryWithCounts = {
+      ...category,
+      toolCount: category._count.CategoriesOnTools
+    };
+    
+    // Supprimer le champ _count de la réponse
+    delete (categoryWithCounts as any)._count;
+
+    return NextResponse.json(categoryWithCounts);
   } catch (error) {
     console.error('Erreur lors de la récupération de la catégorie:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

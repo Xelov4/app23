@@ -4,29 +4,6 @@ import { db } from "@/lib/db";
 // GET /api/categories - Récupère toutes les catégories
 export async function GET(request: NextRequest) {
   try {
-    // Données mockées pour contourner le problème de base de données
-    const mockCategories = [
-      {
-        id: "cat1",
-        name: "Exemple",
-        slug: "exemple",
-        description: "Catégorie exemple",
-        imageUrl: null,
-        toolCount: 2
-      },
-      {
-        id: "cat2",
-        name: "Test",
-        slug: "test",
-        description: "Catégorie de test",
-        imageUrl: null,
-        toolCount: 0
-      }
-    ];
-
-    return NextResponse.json(mockCategories);
-
-    /*
     // Récupérer toutes les catégories avec le nombre d'outils associés
     const categories = await db.category.findMany({
       include: {
@@ -35,6 +12,9 @@ export async function GET(request: NextRequest) {
             CategoriesOnTools: true
           }
         }
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
 
@@ -45,11 +25,12 @@ export async function GET(request: NextRequest) {
       slug: category.slug,
       description: category.description,
       imageUrl: category.imageUrl,
-      toolCount: category._count.CategoriesOnTools
+      toolCount: category._count.CategoriesOnTools,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt
     }));
 
     return NextResponse.json(formattedCategories);
-    */
   } catch (error) {
     console.error('Erreur lors de la récupération des catégories:', error);
     return NextResponse.json(
