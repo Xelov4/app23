@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
   try {
     const slug = params.slug;
     const body = await request.json();
-    const { name, description, imageUrl, newSlug } = body;
+    const { name, description, imageUrl, newSlug, seoTitle, metaDescription } = body;
 
     // Vérifier si la catégorie existe
     const existingCategory = await db.category.findUnique({
@@ -80,7 +80,9 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
         name: name || undefined,
         slug: newSlug || undefined,
         description: description !== undefined ? description : undefined,
-        imageUrl: imageUrl !== undefined ? imageUrl : undefined
+        imageUrl: imageUrl !== undefined ? imageUrl : undefined,
+        seoTitle: seoTitle !== undefined ? seoTitle : undefined,
+        metaDescription: metaDescription !== undefined ? metaDescription : undefined
       }
     });
 

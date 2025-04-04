@@ -51,6 +51,8 @@ model Category {
   slug              String              @unique
   description       String
   imageUrl          String?
+  seoTitle          String?
+  metaDescription   String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   CategoriesOnTools CategoriesOnTools[]
