@@ -92,48 +92,31 @@ export default function ToolV2Page() {
     missing: true
   });
 
-  // Vérifier la session utilisateur
+  // Vérifier la session utilisateur et charger les outils
   useEffect(() => {
-    const checkSession = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/admin/session');
-        const data = await response.json();
+        setIsLoading(true);
+        const response = await fetch('/api/tools');
+        if (!response.ok) throw new Error('Erreur lors du chargement des outils');
         
-        if (!data.authenticated) {
-          router.push('/admin');
-        } else {
-          fetchTools();
-        }
+        const data = await response.json();
+        setTools(data.map((tool: any) => ({
+          ...tool,
+          status: 'idle',
+          toggleStatus: 'idle',
+          dbUpdated: false
+        })));
       } catch (err) {
-        console.error('Erreur lors de la vérification de session:', err);
-        router.push('/admin');
+        setError((err as Error).message);
+        console.error('Erreur de récupération des outils:', err);
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    checkSession();
-  }, [router]);
-
-  // Charger les outils
-  const fetchTools = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/tools');
-      if (!response.ok) throw new Error('Erreur lors du chargement des outils');
-      
-      const data = await response.json();
-      setTools(data.map((tool: any) => ({
-        ...tool,
-        status: 'idle',
-        toggleStatus: 'idle',
-        dbUpdated: false
-      })));
-    } catch (err) {
-      setError((err as Error).message);
-      console.error('Erreur de récupération des outils:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    fetchData();
+  }, []);
 
   // Réinitialiser la page courante lors du changement d'items par page
   useEffect(() => {

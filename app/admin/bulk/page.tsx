@@ -67,36 +67,23 @@ export default function BulkPage() {
   });
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/api/admin/session');
-        const data = await response.json();
-        
-        if (!data.authenticated) {
-          router.push('/admin');
-        }
-      } catch (err) {
-        console.error('Erreur lors de la vérification de session:', err);
-        router.push('/admin');
-      }
-    };
-    
-    checkSession();
-
     // Charger les outils depuis l'API
     const fetchTools = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch('/api/tools');
         const data = await response.json();
         setTools(data.map((tool: any) => ({ ...tool, status: 'idle', dbUpdated: false })));
       } catch (error) {
         console.error('Erreur lors du chargement des outils:', error);
+        setError('Erreur lors du chargement des outils');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchTools();
-  }, [router]);
+  }, []);
 
   // Réinitialiser la page courante lors du changement d'items par page
   useEffect(() => {

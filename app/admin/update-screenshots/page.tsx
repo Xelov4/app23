@@ -34,25 +34,6 @@ export default function UpdateScreenshotsPage() {
   const [progress, setProgress] = useState(0);
   const router = useRouter();
 
-  // Vérifier l'authentification
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/api/admin/session');
-        const data = await response.json();
-        
-        if (!data.authenticated) {
-          router.push('/admin');
-        }
-      } catch (err) {
-        console.error('Erreur lors de la vérification de session:', err);
-        router.push('/admin');
-      }
-    };
-    
-    checkSession();
-  }, [router]);
-
   // Charger tous les outils
   useEffect(() => {
     const fetchTools = async () => {

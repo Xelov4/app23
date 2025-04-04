@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { 
   Menu, Home, Plus, Layers, Edit, Settings, LogOut, 
   Database, Image, TrendingUp, Zap, ChevronRight,
-  Users, FileText, BarChart
+  Users, FileText, BarChart, LayoutDashboard, Camera, ListChecks,
+  PlusCircle, Pencil, Globe
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -65,29 +66,67 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return <>{children}</>;
   }
 
-  // Navigation items avec catégories
-  const navItems = [
+  // Configuration de la navigation
+  const navigationItems = [
     {
-      category: "Général",
+      category: "Tableaux de bord",
       items: [
-        { name: 'Tableau de bord', href: '/admin/dashboard', icon: <Home className="h-5 w-5" /> },
+        {
+          title: 'Dashboard',
+          href: '/admin/dashboard',
+          icon: <LayoutDashboard className="h-5 w-5" />,
+        },
+        {
+          title: 'Dashboard v2',
+          href: '/admin/dashboard-v2',
+          icon: <LayoutDashboard className="h-5 w-5" />,
+          new: true, // Pour indiquer que c'est un nouvel élément
+        },
       ]
     },
     {
       category: "Gestion du contenu",
       items: [
-        { name: 'Ajouter un outil', href: '/admin/add/tools', icon: <Plus className="h-5 w-5" /> },
-        { name: 'Ajouter une catégorie', href: '/admin/add/categories', icon: <Plus className="h-5 w-5" /> },
-        { name: 'Enrichir les outils', href: '/admin/enrichir', icon: <Edit className="h-5 w-5" /> },
-        { name: 'Outil V2', href: '/admin/tool-v2', icon: <Zap className="h-5 w-5" /> },
+        {
+          title: 'Gérer les outils',
+          href: '/admin/tool-v2',
+          icon: <Settings className="h-5 w-5" />,
+        },
+        {
+          title: 'Enrichir les outils',
+          href: '/admin/enrichir',
+          icon: <Edit className="h-5 w-5" />,
+        },
+        {
+          title: 'Ajouter un contenu',
+          href: '/admin/add',
+          icon: <PlusCircle className="h-5 w-5" />,
+        },
+        {
+          title: 'Modifier un contenu',
+          href: '/admin/modify',
+          icon: <Pencil className="h-5 w-5" />,
+        },
       ]
     },
     {
       category: "Maintenance",
       items: [
-        { name: 'Traitement par lots', href: '/admin/bulk', icon: <Layers className="h-5 w-5" /> },
-        { name: 'Mettre à jour les images', href: '/admin/update-screenshots', icon: <Image className="h-5 w-5" /> },
-        { name: 'Crawl & Import', href: '/admin/crawl', icon: <TrendingUp className="h-5 w-5" /> },
+        {
+          title: 'Captures d\'écran',
+          href: '/admin/update-screenshots',
+          icon: <Camera className="h-5 w-5" />,
+        },
+        {
+          title: 'Traitement par lots',
+          href: '/admin/bulk',
+          icon: <ListChecks className="h-5 w-5" />,
+        },
+        {
+          title: 'Crawl & Import',
+          href: '/admin/crawl',
+          icon: <Globe className="h-5 w-5" />,
+        },
       ]
     }
   ];
@@ -102,30 +141,32 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
         
         <div className="flex-1 overflow-y-auto py-4">
-          {navItems.map((category, idx) => (
+          {navigationItems.map((group, idx) => (
             <div key={idx} className="mb-6 px-4">
               <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider px-2">
-                {category.category}
+                {group.category}
               </h3>
               <nav className="space-y-1">
-                {category.items.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                  return (
-                    <Link 
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
-                        ${isActive 
-                          ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500' 
-                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent'}
-                      `}
-                    >
-                      <span className="mr-3">{item.icon}</span>
-                      {item.name}
-                    </Link>
-                  );
-                })}
+                {group.items.map((item) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
+                      ${pathname === item.href || pathname.startsWith(item.href + '/') 
+                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500' 
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent'}
+                    `}
+                  >
+                    <span className="mr-3">{item.icon}</span>
+                    {item.title}
+                    {item.new && (
+                      <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                        Nouveau
+                      </span>
+                    )}
+                  </Link>
+                ))}
               </nav>
             </div>
           ))}
@@ -169,31 +210,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
           
           <div className="flex-1 overflow-y-auto py-4">
-            {navItems.map((category, idx) => (
+            {navigationItems.map((group, idx) => (
               <div key={idx} className="mb-6 px-4">
                 <h3 className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider px-2">
-                  {category.category}
+                  {group.category}
                 </h3>
                 <nav className="space-y-1">
-                  {category.items.map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                    return (
-                      <Link 
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileSidebarOpen(false)}
-                        className={`
-                          flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
-                          ${isActive 
-                            ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500' 
-                            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent'}
-                        `}
-                      >
-                        <span className="mr-3">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    );
-                  })}
+                  {group.items.map((item) => (
+                    <Link 
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileSidebarOpen(false)}
+                      className={`
+                        flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
+                        ${pathname === item.href || pathname.startsWith(item.href + '/') 
+                          ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-l-4 border-transparent'}
+                      `}
+                    >
+                      <span className="mr-3">{item.icon}</span>
+                      {item.title}
+                      {item.new && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                          Nouveau
+                        </span>
+                      )}
+                    </Link>
+                  ))}
                 </nav>
               </div>
             ))}

@@ -4,55 +4,7 @@ import { db } from "@/lib/db";
 // GET /api/tools - Récupère tous les outils
 export async function GET(request: NextRequest) {
   try {
-    // Données mockées pour contourner le problème de base de données
-    const mockTools = [
-      {
-        id: "1",
-        name: "Outil exemple 1",
-        slug: "outil-exemple-1",
-        description: "Description de l'outil exemple 1",
-        logoUrl: null,
-        imageUrl: null,
-        websiteUrl: "https://exemple1.com",
-        pricingType: "FREE",
-        pricingDetails: null,
-        features: "[]",
-        isActive: true,
-        httpCode: 200,
-        twitterUrl: null,
-        instagramUrl: null,
-        facebookUrl: null,
-        linkedinUrl: null,
-        githubUrl: null,
-        category: "Exemple",
-        categoryId: "cat1"
-      },
-      {
-        id: "2",
-        name: "Outil exemple 2",
-        slug: "outil-exemple-2",
-        description: "Description de l'outil exemple 2",
-        logoUrl: null,
-        imageUrl: null,
-        websiteUrl: "https://exemple2.com",
-        pricingType: "FREEMIUM",
-        pricingDetails: null,
-        features: "[]",
-        isActive: true,
-        httpCode: 200,
-        twitterUrl: null,
-        instagramUrl: null,
-        facebookUrl: null,
-        linkedinUrl: null,
-        githubUrl: null,
-        category: "Exemple",
-        categoryId: "cat1"
-      }
-    ];
-
-    return NextResponse.json(mockTools);
-
-    /*
+    // Récupérer tous les outils depuis la base de données
     const tools = await db.tool.findMany({
       include: {
         CategoriesOnTools: {
@@ -64,35 +16,61 @@ export async function GET(request: NextRequest) {
           include: {
             Tag: true
           }
-        }
+        },
+        Review: true,
+        _count: {
+          select: {
+            Review: true,
+          },
+        },
       }
     });
 
     // Formater les résultats
-    const formattedTools = tools.map((tool: any) => ({
-      id: tool.id,
-      name: tool.name,
-      slug: tool.slug,
-      description: tool.description,
-      logoUrl: tool.logoUrl,
-      imageUrl: tool.imageUrl,
-      websiteUrl: tool.websiteUrl,
-      pricingType: tool.pricingType,
-      pricingDetails: tool.pricingDetails,
-      features: tool.features,
-      isActive: tool.isActive,
-      httpCode: tool.httpCode || null,
-      twitterUrl: tool.twitterUrl || null,
-      instagramUrl: tool.instagramUrl || null,
-      facebookUrl: tool.facebookUrl || null,
-      linkedinUrl: tool.linkedinUrl || null,
-      githubUrl: tool.githubUrl || null,
-      category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
-      categoryId: tool.CategoriesOnTools[0]?.categoryId
-    }));
+    const formattedTools = tools.map((tool: any) => {
+      // Calculer la note moyenne
+      const rating = tool.Review && tool.Review.length > 0
+        ? tool.Review.reduce((acc, review) => acc + review.rating, 0) / tool.Review.length
+        : 0;
+
+      return {
+        id: tool.id,
+        name: tool.name,
+        slug: tool.slug,
+        description: tool.description,
+        logoUrl: tool.logoUrl,
+        websiteUrl: tool.websiteUrl,
+        pricingType: tool.pricingType,
+        pricingDetails: tool.pricingDetails,
+        features: tool.features,
+        isActive: tool.isActive,
+        httpCode: tool.httpCode || null,
+        httpChain: tool.httpChain || null,
+        twitterUrl: tool.twitterUrl || null,
+        instagramUrl: tool.instagramUrl || null,
+        facebookUrl: tool.facebookUrl || null,
+        linkedinUrl: tool.linkedinUrl || null,
+        githubUrl: tool.githubUrl || null,
+        category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
+        categoryId: tool.CategoriesOnTools[0]?.categoryId,
+        categories: tool.CategoriesOnTools.map((c: any) => ({
+          id: c.categoryId,
+          name: c.Category.name,
+          slug: c.Category.slug
+        })),
+        tags: tool.TagsOnTools.map((t: any) => ({
+          id: t.tagId,
+          name: t.Tag.name,
+          slug: t.Tag.slug
+        })),
+        rating,
+        reviewCount: tool._count.Review,
+        createdAt: tool.createdAt,
+        updatedAt: tool.updatedAt
+      };
+    });
 
     return NextResponse.json(formattedTools);
-    */
   } catch (error) {
     console.error('Erreur lors de la récupération des outils:', error);
     return NextResponse.json(

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, LogIn, AlertCircle, Shield } from 'lucide-react';
 
 export default function AdminLoginPage() {
@@ -11,6 +11,8 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/admin/dashboard';
 
   // Vérifier si déjà connecté
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function AdminLoginPage() {
         const data = await response.json();
         
         if (data.authenticated) {
-          router.push('/admin/dashboard');
+          router.push(redirectPath);
         }
       } catch (err) {
         console.error('Erreur lors de la vérification de session:', err);
@@ -28,7 +30,7 @@ export default function AdminLoginPage() {
     };
     
     checkSession();
-  }, [router]);
+  }, [router, redirectPath]);
 
   // Gestion de la connexion
   const handleLogin = async (e: React.FormEvent) => {
@@ -51,8 +53,8 @@ export default function AdminLoginPage() {
         throw new Error(data.error || 'Erreur lors de la connexion');
       }
       
-      // Redirection vers le tableau de bord
-      router.push('/admin/dashboard');
+      // Redirection vers la page demandée ou le tableau de bord par défaut
+      router.push(redirectPath);
     } catch (err) {
       setError((err as Error).message);
       console.error('Erreur lors de la connexion:', err);
