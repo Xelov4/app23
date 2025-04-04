@@ -7,7 +7,7 @@ import {
   Menu, Home, Plus, Layers, Edit, Settings, LogOut, 
   Database, Image, TrendingUp, Zap, ChevronRight,
   Users, FileText, BarChart, LayoutDashboard, Camera, ListChecks,
-  PlusCircle, Pencil, Globe
+  PlusCircle, Pencil, Globe, Bot
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -118,6 +118,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       category: "Maintenance",
       items: [
+        {
+          title: 'GeminiIA',
+          href: '/admin/gemini-ia',
+          icon: <Bot className="h-5 w-5" />,
+          new: true,
+        },
         {
           title: 'Captures d\'écran',
           href: '/admin/update-screenshots',

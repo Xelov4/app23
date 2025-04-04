@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { use } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -26,6 +27,9 @@ import { fr } from 'date-fns/locale';
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 import 'react-quill-new/dist/quill.snow.css';
 
+// Import du composant AiOptimizer
+import AiOptimizer from '@/app/components/AiOptimizer';
+
 // Types
 interface Category {
   id: string;
@@ -47,7 +51,9 @@ interface PageProps {
 }
 
 export default function EditCategoryPage({ params }: PageProps) {
-  const { slug } = params;
+  // Utiliser React.use pour récupérer les paramètres
+  const unwrappedParams = use(params as unknown as Promise<{ slug: string }>);
+  const { slug } = unwrappedParams;
   const router = useRouter();
   
   const [category, setCategory] = useState<Category | null>(null);
@@ -85,7 +91,7 @@ export default function EditCategoryPage({ params }: PageProps) {
   const quillFormats = [
     'header',
     'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet',
+    'list',
     'link', 'image'
   ];
   
@@ -399,6 +405,12 @@ export default function EditCategoryPage({ params }: PageProps) {
               style={{ maxHeight: '200px' }}
               dangerouslySetInnerHTML={{ __html: description }}
             />
+            {description && !description.trim().startsWith('<') && (
+              <p className="mt-2 text-xs text-amber-600">
+                <AlertCircle className="h-3 w-3 inline mr-1" />
+                Le contenu n'est pas au format HTML. Ajoutez des balises HTML (comme &lt;p&gt;, &lt;h2&gt;, &lt;ul&gt;) pour améliorer le formatage.
+              </p>
+            )}
           </div>
         </div>
         
@@ -520,6 +532,82 @@ export default function EditCategoryPage({ params }: PageProps) {
               <li>Ajoutez des liens internes vers d'autres pages pertinentes du site</li>
             </ul>
           </div>
+        </div>
+        
+        {/* Composant d'optimisation IA */}
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-800">
+            <Settings className="h-5 w-5 mr-2 text-primary" />
+            Optimisation avec l'IA
+          </h2>
+          
+          <p className="text-sm text-gray-600 mb-4">
+            Utilisez l'intelligence artificielle pour optimiser automatiquement le contenu de cette catégorie.
+            Sélectionnez les champs à optimiser et laissez l'IA vous proposer des améliorations.
+          </p>
+          
+          <AiOptimizer
+            title="Optimiser cette catégorie"
+            entityName={name}
+            entityType="catégorie"
+            contextDescription={`Cette catégorie concerne des outils d'IA pour ${name}. Le site vidéo-ia.net est spécialisé dans la présentation d'outils d'intelligence artificielle pour la création et l'édition de contenu vidéo et multimédia.`}
+            fields={[
+              {
+                id: "name",
+                label: "Nom de la catégorie",
+                value: name,
+                description: "Nom court et descriptif de la catégorie",
+                selectable: false
+              },
+              {
+                id: "description",
+                label: "Description complète",
+                value: description,
+                description: "Description détaillée de la catégorie avec support HTML"
+              },
+              {
+                id: "seoTitle",
+                label: "Titre SEO",
+                value: seoTitle || "",
+                description: "Titre optimisé pour les moteurs de recherche (50-60 caractères)"
+              },
+              {
+                id: "metaDescription",
+                label: "Meta description",
+                value: metaDescription || "",
+                description: "Description courte pour les moteurs de recherche (120-160 caractères)"
+              }
+            ]}
+            onFieldsUpdate={(updatedFields) => {
+              // Mise à jour des champs en fonction des résultats de l'IA
+              console.log("Champs mis à jour reçus:", updatedFields);
+              
+              updatedFields.forEach(field => {
+                switch (field.id) {
+                  case "name":
+                    setName(field.value);
+                    break;
+                  case "description":
+                    setDescription(field.value);
+                    break;
+                  case "seoTitle":
+                    setSeoTitle(field.value);
+                    break;
+                  case "metaDescription":
+                    setMetaDescription(field.value);
+                    break;
+                }
+              });
+              
+              // Message de confirmation
+              setSuccessMessage("Champs optimisés avec succès par l'IA!");
+              
+              // Faire défiler vers le haut pour voir les modifications
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }, 500);
+            }}
+          />
         </div>
         
         {/* Boutons d'action */}
