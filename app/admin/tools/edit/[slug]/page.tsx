@@ -4,11 +4,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { use } from 'react';
-import { 
-  ArrowLeft, 
-  Save, 
-  Loader2, 
+import {
+  Calendar,
+  Check,
+  Save,
   AlertCircle,
+  Info,
+  ArrowLeft,
+  Edit,
+  Star,
+  Trash,
+  Plus,
+  Minus,
+  Facebook,
+  Linkedin,
+  Github,
+  Loader2,
   Settings,
   Trash2,
   Sparkles,
@@ -16,19 +27,11 @@ import {
   Tag,
   X,
   ListChecks,
-  Info,
-  Plus,
-  Edit,
   ExternalLink,
   ImagePlus,
-  Trash,
-  Check,
   Globe,
-  Twitter,
   Instagram,
-  Facebook,
-  Linkedin,
-  Github,
+  Twitter,
   Youtube,
   SmartphoneIcon,
   FileText
@@ -39,6 +42,9 @@ import ImagePreview from '@/app/components/ImagePreview';
 import ToolAiOptimizer from '@/app/components/ToolAiOptimizer';
 import ImageSocialCrawler from '@/app/components/ImageSocialCrawler';
 import ContentCrawler from '@/app/components/ContentCrawler';
+import PricingCrawler from '@/app/components/PricingCrawler';
+import DetailedDescriptionCrawler from '@/app/components/DetailedDescriptionCrawler';
+import UrlValidator from '@/app/components/UrlValidator';
 
 // Types
 type PricingType = 'FREE' | 'FREEMIUM' | 'PAID';
@@ -127,7 +133,9 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
   const [tool, setTool] = useState<Tool | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [detailedDescription, setDetailedDescription] = useState<string>('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [pricingType, setPricingType] = useState<PricingType>('FREE');
   const [pricingDetails, setPricingDetails] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
@@ -141,12 +149,14 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
   const [affiliateUrl, setAffiliateUrl] = useState('');
   const [hasAffiliateProgram, setHasAffiliateProgram] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [seoTitle, setSeoTitle] = useState('');
-  const [seoDescription, setSeoDescription] = useState('');
-  const [summary, setSummary] = useState<string>('');
-  const [metaDescription, setMetaDescription] = useState<string>('');
-  const [pros, setPros] = useState<string>('');
-  const [cons, setCons] = useState<string>('');
+  const [httpCode, setHttpCode] = useState<number | null>(null);
+  const [httpChain, setHttpChain] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [pros, setPros] = useState<string[]>([]);
+  const [cons, setCons] = useState<string[]>([]);
+  const [seoTitle, setSeoTitle] = useState<string>('');
+  const [seoDescription, setSeoDescription] = useState<string>('');
   
   // Ajouter ces états:
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
@@ -158,7 +168,45 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
   const [userTypes, setUserTypes] = useState<UserType[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
   const [customFeatures, setCustomFeatures] = useState<string[]>([]);
-  const [aiPrompt, setAiPrompt] = useState<string>('');
+  
+  // Définir l'état du formulaire
+  const [formData, setFormData] = useState<Tool>({
+    id: '',
+    name: '',
+    slug: '',
+    description: '',
+    logoUrl: null,
+    websiteUrl: '',
+    features: [],
+    pricingType: 'FREE',
+    pricingDetails: null,
+    rating: null,
+    reviewCount: null,
+    httpCode: null,
+    httpChain: null,
+    twitterUrl: null,
+    instagramUrl: null,
+    facebookUrl: null,
+    linkedinUrl: null,
+    githubUrl: null,
+    youtubeUrl: null,
+    appStoreUrl: null,
+    playStoreUrl: null,
+    affiliateUrl: null,
+    hasAffiliateProgram: false,
+    isActive: true,
+    seoTitle: null,
+    seoDescription: null,
+    createdAt: '',
+    updatedAt: '',
+    tags: [],
+    userTypes: [],
+    categories: [],
+    pros: [],
+    cons: [],
+    summary: '',
+    metaDescription: ''
+  });
   
   // Charger les données de l'outil
   useEffect(() => {
@@ -183,6 +231,8 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
         setWebsiteUrl(data.websiteUrl || '');
         setPricingType(data.pricingType || 'FREE');
         setPricingDetails(data.pricingDetails || '');
+        setSeoTitle(data.seoTitle || '');
+        setSeoDescription(data.seoDescription || '');
         
         // Initialiser les URLs des réseaux sociaux
         setTwitterUrl(data.twitterUrl || '');
@@ -200,12 +250,14 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
         
         // Autres champs
         setIsActive(data.isActive || false);
-        setSeoTitle(data.seoTitle || '');
-        setSeoDescription(data.seoDescription || '');
-        setSummary(data.summary || '');
-        setMetaDescription(data.metaDescription || '');
-        setPros(Array.isArray(data.pros) ? data.pros.join('\n') : '');
-        setCons(Array.isArray(data.cons) ? data.cons.join('\n') : '');
+        setLogoUrl(data.logoUrl || null);
+        setHttpCode(data.httpCode || null);
+        setHttpChain(data.httpChain || null);
+        setRating(data.rating || null);
+        setReviewCount(data.reviewCount || null);
+        setPros(Array.isArray(data.pros) ? data.pros : []);
+        setCons(Array.isArray(data.cons) ? data.cons : []);
+        setDetailedDescription(data.detailedDescription || '');
         
         // Initialiser les tags sélectionnés
         if (data.tags && Array.isArray(data.tags)) {
@@ -346,17 +398,15 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
       const emptyFields = [];
       if (!description) emptyFields.push("description détaillée");
       if (customFeatures.length === 0) emptyFields.push("liste de 5 fonctionnalités principales");
-      if (!seoTitle) emptyFields.push("titre SEO optimisé");
-      if (!seoDescription) emptyFields.push("méta-description SEO de 155 caractères maximum");
       
       if (emptyFields.length > 0) {
         defaultPrompt += `Fournis : ${emptyFields.join(", ")}. Format JSON.`;
       } else {
-        defaultPrompt = `Améliore et optimise la description de l'outil "${name}" : ${description}. Propose également 5 fonctionnalités clés, un titre SEO et une méta-description. Format JSON.`;
+        defaultPrompt = `Améliore et optimise la description de l'outil "${name}" : ${description}. Propose également 5 fonctionnalités clés. Format JSON.`;
       }
       
       // Utiliser le prompt personnalisé s'il est fourni
-      const finalPrompt = aiPrompt || defaultPrompt;
+      const finalPrompt = customFeatures.join(", ") || defaultPrompt;
       
       // Appel à l'API Gemini (à implémenter côté serveur)
       const response = await fetch('/api/admin/generate-ai-content', {
@@ -380,8 +430,6 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
       // Mise à jour des champs avec les données générées
       if (data.description) setDescription(data.description);
       if (data.features && Array.isArray(data.features)) setCustomFeatures(data.features);
-      if (data.seoTitle) setSeoTitle(data.seoTitle);
-      if (data.seoDescription) setSeoDescription(data.seoDescription);
       
     } catch (err) {
       console.error('Erreur lors de la génération avec l\'IA:', err);
@@ -459,20 +507,23 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
       
       // Formater les pros et cons en tableaux
       const prosArray = pros
-        ? pros.split('\n').filter(line => line.trim() !== '')
+        ? pros.filter(line => line.trim() !== '')
         : [];
       
       const consArray = cons
-        ? cons.split('\n').filter(line => line.trim() !== '')
+        ? cons.filter(line => line.trim() !== '')
         : [];
       
       // Ne conserver que les champs qui existent dans le schéma Prisma
       const toolData = {
         name,
         description,
+        detailedDescription,
         websiteUrl,
         pricingType,
         pricingDetails,
+        seoTitle: seoTitle || null,
+        seoDescription: seoDescription || null,
         twitterUrl: twitterUrl || null,
         instagramUrl: instagramUrl || null,
         facebookUrl: facebookUrl || null,
@@ -484,14 +535,11 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
         affiliateUrl: affiliateUrl || null,
         hasAffiliateProgram,
         isActive,
-        logoUrl: tool?.logoUrl || null,
-        // Nous gardons les champs personnalisés à part pour qu'ils soient traités conditionnellement côté API
-        customFields: {
-          seoTitle: seoTitle || null,
-          seoDescription: seoDescription || null,
-          summary: summary || null,
-          metaDescription: metaDescription || null,
-        },
+        logoUrl: logoUrl || null,
+        httpCode,
+        httpChain,
+        rating,
+        reviewCount,
         pros: prosArray,
         cons: consArray,
         tags: selectedTags,
@@ -534,17 +582,10 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
   // Gestion de l'enrichissement IA
   const handleAIUpdate = (data: {
     description?: string;
-    summary?: string;
-    seoTitle?: string;
-    metaDescription?: string;
     pros?: string[];
     cons?: string[];
   }) => {
     if (data.description) setDescription(data.description);
-    if (data.summary) setSummary(data.summary);
-    if (data.seoTitle) setSeoTitle(data.seoTitle);
-    if (data.metaDescription) setMetaDescription(data.metaDescription);
-    // Traitement des pros et cons si implémentés dans votre modèle
     if (data.pros && Array.isArray(data.pros)) {
       // Implémentez selon votre UI
       console.log('Avantages générés:', data.pros);
@@ -572,10 +613,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
     
     // Mise à jour du logo URL
     if (data.logoUrl && tool) {
-      setTool({
-        ...tool,
-        logoUrl: data.logoUrl
-      });
+      setLogoUrl(data.logoUrl);
     }
   };
   
@@ -590,18 +628,71 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
       setDescription(data.description);
     }
     
-    if (data.summary) setSummary(data.summary);
-    if (data.seoTitle) setSeoTitle(data.seoTitle);
-    if (data.seoDescription) setSeoDescription(data.seoDescription);
+    // Mise à jour des métadonnées SEO
+    if (data.seoTitle) {
+      console.log("Titre SEO reçu du crawler:", data.seoTitle);
+      setSeoTitle(data.seoTitle);
+    }
+    
+    if (data.seoDescription) {
+      console.log("Description SEO reçue du crawler:", data.seoDescription);
+      setSeoDescription(data.seoDescription);
+    }
     
     // Mise à jour des avantages et inconvénients
     if (data.pros && Array.isArray(data.pros)) {
-      setPros(data.pros.join('\n'));
+      setPros(data.pros);
     }
     
     if (data.cons && Array.isArray(data.cons)) {
-      setCons(data.cons.join('\n'));
+      setCons(data.cons);
     }
+  };
+  
+  // Gestionnaire pour les données générées par PricingCrawler
+  const handlePricingCrawlerDataGenerated = (data: any) => {
+    console.log("Informations de prix reçues du crawler:", data);
+    
+    // Mise à jour du type de prix
+    if (data.pricingType) {
+      setPricingType(data.pricingType);
+    }
+    
+    // Mise à jour des détails de prix
+    if (data.pricingDetails) {
+      setPricingDetails(data.pricingDetails);
+    }
+  };
+  
+  // Gestionnaire pour les données générées par DetailedDescriptionCrawler
+  const handleDetailedDescriptionCrawlerDataGenerated = (data: any) => {
+    console.log("Description détaillée SEO reçue du crawler:", data);
+    
+    // Mise à jour de la description détaillée 
+    if (data.detailedDescription) {
+      setDetailedDescription(data.detailedDescription);
+    }
+  };
+  
+  // Ajouter ces fonctions pour gérer les pros et cons
+  const addPro = () => {
+    setPros([...pros, '']);
+  };
+  
+  const removePro = (index: number) => {
+    const newPros = [...pros];
+    newPros.splice(index, 1);
+    setPros(newPros);
+  };
+  
+  const addCon = () => {
+    setCons([...cons, '']);
+  };
+  
+  const removeCon = (index: number) => {
+    const newCons = [...cons];
+    newCons.splice(index, 1);
+    setCons(newCons);
   };
   
   // Afficher un loading si les données sont en cours de chargement
@@ -682,6 +773,36 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
           </h1>
           
           <div className="space-y-6">
+            {/* Vérificateur d'URL */}
+            <UrlValidator
+              initialUrl={websiteUrl}
+              toolSlug={slug}
+              onValidationComplete={(data: {
+                websiteUrl?: string;
+                httpStatus?: number;
+                httpChain?: string;
+                isValid: boolean;
+                isActive?: boolean;
+              }) => {
+                // Mettre à jour l'URL du site si elle a été redirigée
+                if (data.websiteUrl) {
+                  setWebsiteUrl(data.websiteUrl);
+                }
+                // Mettre à jour le code de statut HTTP et la chaîne de redirection
+                if (data.httpStatus !== undefined) {
+                  setHttpCode(data.httpStatus);
+                }
+                if (data.httpChain) {
+                  setHttpChain(data.httpChain);
+                }
+                // Mettre à jour le statut actif en fonction de la validité de l'URL
+                if (data.isActive !== undefined) {
+                  setIsActive(data.isActive);
+                  console.log(`État isActive mis à jour: ${data.isActive}`);
+                }
+              }}
+            />
+            
             <ImageSocialCrawler 
               onDataGenerated={handleImageSocialCrawlerDataGenerated}
               initialUrl={websiteUrl}
@@ -698,7 +819,19 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 githubUrl,
                 youtubeUrl
               ].filter(Boolean) as string[]}
-              imageUrl={tool?.logoUrl || ''}
+              imageUrl={logoUrl || ''}
+              apiKey={process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''}
+            />
+            
+            <PricingCrawler
+              onDataGenerated={handlePricingCrawlerDataGenerated}
+              initialUrl={websiteUrl}
+              apiKey={process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''}
+            />
+            
+            <DetailedDescriptionCrawler
+              onDataGenerated={handleDetailedDescriptionCrawlerDataGenerated}
+              initialUrl={websiteUrl}
               apiKey={process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''}
             />
           </div>
@@ -713,81 +846,125 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom de l'outil
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    Nom <code className="text-xs text-red-500 italic">(name)</code>
                   </label>
                   <input
                     type="text"
-                    name="name"
                     id="name"
-                    className="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="Nom de l'outil"
+                    required
                   />
                 </div>
                 
-                {tool?.logoUrl && (
-                  <div>
-                    <label htmlFor="logoUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                      Chemin du logo
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="isActive" className="block text-sm font-medium text-gray-700">
+                      Statut <code className="text-xs text-red-500 italic">(isActive)</code>
                     </label>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        name="logoUrl"
-                        id="logoUrl"
-                        className="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
-                        value={tool.logoUrl}
-                        readOnly
-                      />
-                      <div className="flex-shrink-0 w-12 h-12 overflow-hidden border border-gray-200 rounded">
-                        <img 
-                          src={tool.logoUrl} 
-                          alt={`Logo de ${name}`} 
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder-image.png';
-                          }}
-                        />
-                      </div>
+                    <div className="text-sm text-gray-500">
+                      Ce statut est automatiquement mis à jour lors de la validation d'URL
                     </div>
                   </div>
-                )}
+                  <div className="mt-1 flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsActive(!isActive)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                        isActive ? 'bg-green-600' : 'bg-red-600'
+                      }`}
+                      aria-pressed={isActive}
+                      aria-labelledby="toggle-status"
+                    >
+                      <span className="sr-only" id="toggle-status">Statut de l'outil</span>
+                      <span
+                        className={`${
+                          isActive ? 'translate-x-6' : 'translate-x-1'
+                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${isActive ? 'text-green-600' : 'text-red-600'}`}>
+                      {isActive ? 'Actif' : 'Désactivé'}
+                    </span>
+                    {!isActive && httpCode && (
+                      <span className="text-xs text-red-500">
+                        (Désactivé en raison d'un problème d'URL: {httpCode === -1 ? "Erreur DNS/Connexion" : `HTTP ${httpCode}`})
+                      </span>
+                    )}
+                  </div>
+                </div>
                 
                 <div>
-                  <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                    Site web
+                  <label htmlFor="websiteUrl" className="block text-sm font-medium text-gray-700">
+                    URL du site web <code className="text-xs text-red-500 italic">(websiteUrl)</code>
                   </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Globe className="h-5 w-5 text-gray-400" />
-                    </div>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                      <Globe className="h-4 w-4" />
+                    </span>
                     <input
-                      type="text"
-                      name="websiteUrl"
+                      type="url"
                       id="websiteUrl"
-                      className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                      placeholder="https://example.com"
                       value={websiteUrl}
                       onChange={(e) => setWebsiteUrl(e.target.value)}
+                      className="flex-1 block w-full border border-gray-300 rounded-r-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      placeholder="https://example.com"
+                      required
                     />
                   </div>
                 </div>
-                
-                <div>
-                  <label htmlFor="summary" className="block text-sm font-medium text-gray-700">
-                    Résumé court (max 200 caractères)
+
+                <div className="mt-6">
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                    Description <code className="text-xs text-red-500 italic">(description)</code>
                   </label>
                   <textarea
-                    id="summary"
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    rows={2}
-                    maxLength={200}
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={6}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="Description détaillée de l'outil"
+                    required
+                  />
+                </div>
+                
+                <div className="mt-6">
+                  <label htmlFor="seoTitle" className="block text-sm font-medium text-gray-700">
+                    Titre SEO <code className="text-xs text-red-500 italic">(seoTitle)</code>
+                  </label>
+                  <input
+                    type="text"
+                    id="seoTitle"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="Titre optimisé pour les moteurs de recherche (55-60 caractères)"
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    {summary.length}/200 caractères
+                    Recommandation: Entre 55 et 60 caractères, incluez des mots-clés pertinents.
+                    <span className="ml-2 text-gray-400">{seoTitle ? `${seoTitle.length} caractères` : '0 caractère'}</span>
+                  </p>
+                </div>
+                
+                <div className="mt-6">
+                  <label htmlFor="seoDescription" className="block text-sm font-medium text-gray-700">
+                    Description SEO <code className="text-xs text-red-500 italic">(seoDescription)</code>
+                  </label>
+                  <textarea
+                    id="seoDescription"
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    rows={3}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="Description courte optimisée pour les moteurs de recherche (150-160 caractères)"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Recommandation: Entre 150 et 160 caractères, résumez clairement l'outil avec des mots-clés pertinents.
+                    <span className="ml-2 text-gray-400">{seoDescription ? `${seoDescription.length} caractères` : '0 caractère'}</span>
                   </p>
                 </div>
               </div>
@@ -800,7 +977,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Catégorie
+                    Catégorie <code className="text-xs text-red-500 italic">(categories)</code>
                   </label>
                   <select
                     value={selectedCategories[0] || ''}
@@ -818,7 +995,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type de prix
+                    Type de prix <code className="text-xs text-red-500 italic">(pricingType)</code>
                   </label>
                   <select
                     value={pricingType}
@@ -834,7 +1011,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               
               <div className="mt-6">
                 <label htmlFor="pricingDetails" className="block text-sm font-medium text-gray-700">
-                  Détails des prix
+                  Détails des prix <code className="text-xs text-red-500 italic">(pricingDetails)</code>
                 </label>
                 <textarea
                   id="pricingDetails"
@@ -849,7 +1026,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tags
+                    Tags <code className="text-xs text-red-500 italic">(tags)</code>
                   </label>
                   <div className="mt-1 border border-gray-300 rounded-md p-2 h-48 overflow-y-auto">
                     {tags.map((tag) => (
@@ -877,7 +1054,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fonctionnalités
+                    Fonctionnalités <code className="text-xs text-red-500 italic">(features)</code>
                   </label>
                   <div className="mt-1 border border-gray-300 rounded-md p-2 h-48 overflow-y-auto">
                     {features.map((feature) => (
@@ -906,7 +1083,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               
               <div className="mt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Types d'utilisateurs
+                  Types d'utilisateurs <code className="text-xs text-red-500 italic">(userTypes)</code>
                 </label>
                 <div className="mt-1 border border-gray-300 rounded-md p-2 grid grid-cols-2 md:grid-cols-3 gap-2">
                   {userTypes.map((userType) => (
@@ -940,7 +1117,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="twitterUrl" className="block text-sm font-medium text-gray-700">
-                    Twitter / X
+                    Twitter / X <code className="text-xs text-red-500 italic">(twitterUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
@@ -959,7 +1136,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label htmlFor="instagramUrl" className="block text-sm font-medium text-gray-700">
-                    Instagram
+                    Instagram <code className="text-xs text-red-500 italic">(instagramUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
@@ -978,11 +1155,11 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label htmlFor="facebookUrl" className="block text-sm font-medium text-gray-700">
-                    Facebook
+                    Facebook <code className="text-xs text-red-500 italic">(facebookUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <Facebook className="h-4 w-4" />
+                      <Instagram className="h-4 w-4" />
                     </span>
                     <input
                       type="url"
@@ -997,11 +1174,11 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label htmlFor="linkedinUrl" className="block text-sm font-medium text-gray-700">
-                    LinkedIn
+                    LinkedIn <code className="text-xs text-red-500 italic">(linkedinUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <Linkedin className="h-4 w-4" />
+                      <Instagram className="h-4 w-4" />
                     </span>
                     <input
                       type="url"
@@ -1016,11 +1193,11 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label htmlFor="githubUrl" className="block text-sm font-medium text-gray-700">
-                    GitHub
+                    GitHub <code className="text-xs text-red-500 italic">(githubUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <Github className="h-4 w-4" />
+                      <Instagram className="h-4 w-4" />
                     </span>
                     <input
                       type="url"
@@ -1035,11 +1212,11 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                 
                 <div>
                   <label htmlFor="youtubeUrl" className="block text-sm font-medium text-gray-700">
-                    YouTube
+                    YouTube <code className="text-xs text-red-500 italic">(youtubeUrl)</code>
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <Youtube className="h-4 w-4" />
+                      <Instagram className="h-4 w-4" />
                     </span>
                     <input
                       type="url"
@@ -1051,48 +1228,52 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                     />
                   </div>
                 </div>
-                
-                <div>
+
+                <div className="col-span-1">
                   <label htmlFor="appStoreUrl" className="block text-sm font-medium text-gray-700">
-                    App Store
+                    App Store <code className="text-xs text-red-500 italic">(appStoreUrl)</code>
                   </label>
-                  <div className="mt-1 flex rounded-md shadow-sm">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <SmartphoneIcon className="h-4 w-4" />
-                    </span>
-                    <input
-                      type="url"
-                      id="appStoreUrl"
-                      value={appStoreUrl}
-                      onChange={(e) => setAppStoreUrl(e.target.value)}
-                      className="flex-1 block w-full border border-gray-300 rounded-r-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                      placeholder="https://apps.apple.com/..."
-                    />
-                  </div>
+                  <input
+                    type="url"
+                    id="appStoreUrl"
+                    value={appStoreUrl}
+                    onChange={(e) => setAppStoreUrl(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="https://apps.apple.com/..."
+                  />
                 </div>
                 
-                <div>
+                <div className="col-span-1">
                   <label htmlFor="playStoreUrl" className="block text-sm font-medium text-gray-700">
-                    Google Play Store
+                    Google Play <code className="text-xs text-red-500 italic">(playStoreUrl)</code>
                   </label>
-                  <div className="mt-1 flex rounded-md shadow-sm">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      <SmartphoneIcon className="h-4 w-4" />
-                    </span>
-                    <input
-                      type="url"
-                      id="playStoreUrl"
-                      value={playStoreUrl}
-                      onChange={(e) => setPlayStoreUrl(e.target.value)}
-                      className="flex-1 block w-full border border-gray-300 rounded-r-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                      placeholder="https://play.google.com/..."
-                    />
-                  </div>
+                  <input
+                    type="url"
+                    id="playStoreUrl"
+                    value={playStoreUrl}
+                    onChange={(e) => setPlayStoreUrl(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="https://play.google.com/..."
+                  />
                 </div>
               </div>
               
-              <div className="mt-6">
-                <div className="flex items-center">
+              <div className="mt-6 grid grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="affiliateUrl" className="block text-sm font-medium text-gray-700">
+                    URL d'affiliation <code className="text-xs text-red-500 italic">(affiliateUrl)</code>
+                  </label>
+                  <input
+                    type="url"
+                    id="affiliateUrl"
+                    value={affiliateUrl}
+                    onChange={(e) => setAffiliateUrl(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                    placeholder="https://..."
+                  />
+                </div>
+                
+                <div className="flex items-center h-full mt-8">
                   <input
                     id="hasAffiliateProgram"
                     type="checkbox"
@@ -1101,82 +1282,7 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   />
                   <label htmlFor="hasAffiliateProgram" className="ml-2 block text-sm text-gray-700">
-                    Cet outil propose un programme d'affiliation
-                  </label>
-                </div>
-                
-                {hasAffiliateProgram && (
-                  <div className="mt-4">
-                    <label htmlFor="affiliateUrl" className="block text-sm font-medium text-gray-700">
-                      URL d'affiliation
-                    </label>
-                    <div className="mt-1 flex rounded-md shadow-sm">
-                      <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                        <ExternalLink className="h-4 w-4" />
-                      </span>
-                      <input
-                        type="url"
-                        id="affiliateUrl"
-                        value={affiliateUrl}
-                        onChange={(e) => setAffiliateUrl(e.target.value)}
-                        className="flex-1 block w-full border border-gray-300 rounded-r-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* SEO et autres paramètres */}
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium leading-6 text-gray-900">SEO et paramètres</h3>
-              
-              <div className="mt-5 grid grid-cols-1 gap-6">
-                <div>
-                  <label htmlFor="seoTitle" className="block text-sm font-medium text-gray-700">
-                    Titre SEO (60-70 caractères)
-                  </label>
-                  <input
-                    type="text"
-                    id="seoTitle"
-                    value={seoTitle}
-                    onChange={(e) => setSeoTitle(e.target.value)}
-                    maxLength={70}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">
-                    {seoTitle.length}/70 caractères
-                  </p>
-                </div>
-                
-                <div>
-                  <label htmlFor="seoDescription" className="block text-sm font-medium text-gray-700">
-                    Description méta (150-160 caractères)
-                  </label>
-                  <textarea
-                    id="seoDescription"
-                    value={seoDescription}
-                    onChange={(e) => setSeoDescription(e.target.value)}
-                    rows={2}
-                    maxLength={160}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">
-                    {seoDescription.length}/160 caractères
-                  </p>
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    id="isActive"
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
-                    Outil actif (visible sur le site)
+                    Possède un programme d'affiliation <code className="text-xs text-red-500 italic">(hasAffiliateProgram)</code>
                   </label>
                 </div>
               </div>
@@ -1187,15 +1293,17 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <FileText className="h-5 w-5 mr-2 text-primary" />
-                  Description détaillée
+                  Description détaillée <code className="text-xs text-red-500 italic">(detailedDescription)</code>
                 </h2>
                 
                 <div className="mt-1">
-                  <RichTextEditor
-                    value={description}
-                    onChange={setDescription}
-                    placeholder="Décrivez l'outil en détail..."
-                  />
+                  <div className="quill-container">
+                    <RichTextEditor
+                      value={detailedDescription}
+                      onChange={setDetailedDescription}
+                      placeholder="Description détaillée de l'outil"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1208,31 +1316,99 @@ export default function EditToolPage({ params }: { params: Promise<{ slug: strin
                   Avantages et inconvénients
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Avantages (un par ligne)
-                    </label>
-                    <textarea
-                      value={pros}
-                      onChange={(e) => setPros(e.target.value)}
-                      rows={5}
-                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                      placeholder="Listez les avantages, un par ligne"
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Avantages <code className="text-xs text-red-500 italic">(pros)</code>
+                  </label>
+                  {pros.map((pro, index) => (
+                    <div key={index} className="mt-2 flex">
+                      <input
+                        type="text"
+                        value={pro}
+                        onChange={(e) => {
+                          const newPros = [...pros];
+                          newPros[index] = e.target.value;
+                          setPros(newPros);
+                        }}
+                        placeholder={`Avantage ${index + 1}`}
+                        className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePro(index)}
+                        className="ml-2 inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addPro}
+                    className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  >
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Ajouter un avantage
+                  </button>
+                </div>
+
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Inconvénients <code className="text-xs text-red-500 italic">(cons)</code>
+                  </label>
+                  {cons.map((con, index) => (
+                    <div key={index} className="mt-2 flex">
+                      <input
+                        type="text"
+                        value={con}
+                        onChange={(e) => {
+                          const newCons = [...cons];
+                          newCons[index] = e.target.value;
+                          setCons(newCons);
+                        }}
+                        placeholder={`Inconvénient ${index + 1}`}
+                        className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCon(index)}
+                        className="ml-2 inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addCon}
+                    className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  >
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Ajouter un inconvénient
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Status</h3>
+              
+              <div className="mt-5 grid grid-cols-1 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Statut <code className="text-xs text-red-500 italic">(isActive)</code>
+                  </label>
+                  <div className="mt-1 flex items-center">
+                    <input
+                      id="isActiveCheckbox"
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                     />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Inconvénients (un par ligne)
+                    <label htmlFor="isActiveCheckbox" className="ml-2 block text-sm text-gray-700">
+                      Outil actif (visible sur le site)
                     </label>
-                    <textarea
-                      value={cons}
-                      onChange={(e) => setCons(e.target.value)}
-                      rows={5}
-                      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                      placeholder="Listez les inconvénients, un par ligne"
-                    />
                   </div>
                 </div>
               </div>

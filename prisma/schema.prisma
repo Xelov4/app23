@@ -18,39 +18,40 @@ model User {
 }
 
 model Tool {
-  id                String              @id @default(cuid())
-  name              String
-  slug              String              @unique
-  description       String
-  logoUrl           String?
-  websiteUrl        String
-  features          String
-  pricingType       String
-  pricingDetails    String?
-  rating            Float?
-  reviewCount       Int?
-  httpCode          Int?
-  twitterUrl        String?
-  instagramUrl      String?
-  facebookUrl       String?
-  linkedinUrl       String?
-  githubUrl         String?
-  youtubeUrl        String?
-  appStoreUrl       String?
-  playStoreUrl      String?
-  isActive          Boolean             @default(true)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  httpChain         String?
-  affiliateUrl      String?
-  hasAffiliateProgram Boolean           @default(false)
-  CategoriesOnTools CategoriesOnTools[]
-  Review            Review[]
-  TagsOnTools       TagsOnTools[]
-  UseCasesOnTools   UseCasesOnTools[]
-  FeaturesOnTools   FeaturesOnTools[]
-  UserTypesOnTools  UserTypesOnTools[]
-  ToolsOnSearches   ToolsOnSearches[]
+  id                  String              @id @default(cuid())
+  name                String
+  slug                String              @unique
+  description         String
+  detailedDescription String?
+  logoUrl             String?
+  websiteUrl          String
+  features            String
+  pricingType         String
+  pricingDetails      String?
+  rating              Float?
+  reviewCount         Int?
+  httpCode            Int?
+  twitterUrl          String?
+  instagramUrl        String?
+  facebookUrl         String?
+  linkedinUrl         String?
+  githubUrl           String?
+  youtubeUrl          String?
+  appStoreUrl         String?
+  playStoreUrl        String?
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  httpChain           String?
+  affiliateUrl        String?
+  hasAffiliateProgram Boolean             @default(false)
+  CategoriesOnTools   CategoriesOnTools[]
+  FeaturesOnTools     FeaturesOnTools[]
+  Review              Review[]
+  TagsOnTools         TagsOnTools[]
+  ToolsOnSearches     ToolsOnSearches[]
+  UseCasesOnTools     UseCasesOnTools[]
+  UserTypesOnTools    UserTypesOnTools[]
 }
 
 model Category {
@@ -59,30 +60,30 @@ model Category {
   slug              String              @unique
   description       String
   imageUrl          String?
-  iconName          String?
   seoTitle          String?
   metaDescription   String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  iconName          String?
   CategoriesOnTools CategoriesOnTools[]
 }
 
 model Tag {
-  id          String        @id @default(cuid())
-  name        String
-  slug        String        @unique
-  seoTitle    String?
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   metaDescription String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  TagsOnTools TagsOnTools[]
+  seoTitle        String?
+  TagsOnTools     TagsOnTools[]
 }
 
 model CategoriesOnTools {
   toolId     String
   categoryId String
-  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
   Category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, categoryId])
   @@index([categoryId])
@@ -107,8 +108,8 @@ model Review {
 model TagsOnTools {
   toolId String
   tagId  String
-  Tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
   Tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  Tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, tagId])
   @@index([tagId])
@@ -128,8 +129,8 @@ model UseCase {
 model UseCasesOnTools {
   toolId    String
   useCaseId String
-  UseCase   UseCase @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
   Tool      Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  UseCase   UseCase @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
 
   @@id([toolId, useCaseId])
   @@index([toolId])
@@ -137,22 +138,22 @@ model UseCasesOnTools {
 }
 
 model Feature {
-  id               String            @id @default(cuid())
-  name             String
-  slug             String            @unique
-  description      String?
-  seoTitle         String?
-  metaDescription  String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  FeaturesOnTools  FeaturesOnTools[]
+  id              String            @id @default(cuid())
+  name            String
+  slug            String            @unique
+  description     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  metaDescription String?
+  seoTitle        String?
+  FeaturesOnTools FeaturesOnTools[]
 }
 
 model FeaturesOnTools {
-  toolId     String
-  featureId  String
-  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
-  Feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  toolId    String
+  featureId String
+  Feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  Tool      Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, featureId])
   @@index([featureId])
@@ -160,22 +161,22 @@ model FeaturesOnTools {
 }
 
 model UserType {
-  id               String            @id @default(cuid())
+  id               String             @id @default(cuid())
   name             String
-  slug             String            @unique
+  slug             String             @unique
   description      String?
   seoTitle         String?
   metaDescription  String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   UserTypesOnTools UserTypesOnTools[]
 }
 
 model UserTypesOnTools {
   toolId     String
   userTypeId String
-  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
   UserType   UserType @relation(fields: [userTypeId], references: [id], onDelete: Cascade)
+  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, userTypeId])
   @@index([userTypeId])
@@ -183,41 +184,41 @@ model UserTypesOnTools {
 }
 
 model Search {
-  id              String           @id @default(cuid())
-  keyword         String           @unique
-  slug            String           @unique
+  id              String            @id @default(cuid())
+  keyword         String            @unique
+  slug            String            @unique
   description     String?
   seoTitle        String?
   metaDescription String?
-  isActive        Boolean          @default(false)
-  searchCount     Int              @default(0)
+  isActive        Boolean           @default(false)
+  searchCount     Int               @default(0)
   lastSearchedAt  DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   SearchData      SearchData[]
   ToolsOnSearches ToolsOnSearches[]
 }
 
 model SearchData {
-  id          String   @id @default(cuid())
-  searchId    String
-  searchTerm  String
-  count       Int      @default(1)
+  id             String   @id @default(cuid())
+  searchId       String
+  searchTerm     String
+  count          Int      @default(1)
   lastSearchedAt DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  Search      Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Search         Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
 
   @@index([searchId])
 }
 
 model ToolsOnSearches {
-  toolId     String
-  searchId   String
-  relevance  Float    @default(1.0)
-  createdAt  DateTime @default(now())
-  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
-  Search     Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  toolId    String
+  searchId  String
+  relevance Float    @default(1.0)
+  createdAt DateTime @default(now())
+  Search    Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  Tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
 
   @@id([toolId, searchId])
   @@index([searchId])

@@ -17,8 +17,6 @@ import {
 interface ContentCrawlerProps {
   onDataGenerated: (data: {
     description?: string;
-    name?: string;
-    summary?: string;
     seoTitle?: string;
     seoDescription?: string;
     pros?: string[];
@@ -147,66 +145,28 @@ export default function ContentCrawler({
         if (!description || description.length < 10) {
           addLog("Description détaillée non trouvée ou trop courte dans l'analyse Gemini", 'warning');
           // Utiliser le contenu brut comme fallback
-          description = `<p>Voici une description détaillée de ${name}:</p>\n<p>${crawlData.content.substring(0, 1000)}...</p>`;
+          description = crawlData.content.substring(0, 1000);
         }
         
-        // Formater la description en HTML structuré
+        // Nettoyer la description pour obtenir un texte simple
         if (description) {
           // Supprimer les marqueurs ** qui entourent les variables
           description = description.replace(/\*\*(.*?)\*\*/g, '$1');
           
-          // Vérifier que la description a au moins 300 mots
-          const wordCount = description.split(/\s+/).length;
-          if (wordCount < 300) {
-            addLog(`La description générée est trop courte (${wordCount} mots), ajout de détails supplémentaires...`, 'warning');
-            
-            // Si on a des sections, c'est déjà structuré, sinon on le structure
-            if (!/(<h[23]|<ul|<li)/.test(description)) {
-              // Transformation de la description en HTML structuré
-              const paragraphs = description.split(/\n\n+/).filter(Boolean);
-              const formattedDescription = paragraphs.map((para: string, index: number) => {
-                if (index === 0) {
-                  return `<p>${para}</p>`;
-                } else if (para.startsWith('- ') || para.startsWith('• ')) {
-                  const items = para.split(/\n/).filter(Boolean)
-                    .map((item: string) => item.replace(/^[•\-]\s*/, '').trim())
-                    .map((item: string) => `<li>${item}</li>`)
-                    .join('');
-                  return `<ul>${items}</ul>`;
-                } else if (para.length < 100) {
-                  return `<h2>${para}</h2>`;
-                } else {
-                  return `<p>${para}</p>`;
-                }
-              }).join('');
-              
-              description = formattedDescription;
-            }
-          } else {
-            addLog(`Description générée avec ${wordCount} mots`, 'success');
-            
-            // Structure la description en HTML si ce n'est pas déjà fait
-            if (!/(<h[23]|<ul|<li|<p)/.test(description)) {
-              const paragraphs = description.split(/\n\n+/).filter(Boolean);
-              description = paragraphs.map((para: string, index: number) => {
-                if (para.startsWith('- ') || para.startsWith('• ')) {
-                  const items = para.split(/\n/).filter(Boolean)
-                    .map((item: string) => item.replace(/^[•\-]\s*/, '').trim())
-                    .map((item: string) => `<li>${item}</li>`)
-                    .join('');
-                  return `<ul>${items}</ul>`;
-                } else if (para.length < 100 && index > 0) {
-                  return `<h2>${para}</h2>`;
-                } else {
-                  return `<p>${para}</p>`;
-                }
-              }).join('');
-            }
-          }
+          // Supprimer les balises HTML
+          description = description.replace(/<\/?[^>]+(>|$)/g, '');
           
-          // Stocker la description formatée
-          setDetailedDescription(description);
+          // Supprimer les préfixes comme "Description détaillée:"
+          description = description.replace(/^(Description détaillée|Description|Détails|Présentation)\s*[:]\s*/i, '');
+          
+          // Nettoyer les espaces et retours à la ligne multiples
+          description = description.replace(/\s+/g, ' ').trim();
+          
+          addLog(`Description nettoyée et formattée pour utilisation`, 'success');
         }
+        
+        // Stocker la description
+        setDetailedDescription(description);
         
         // Extraire les autres champs...
         const summaryMatch = rawResponse.match(/3\.\s*([\s\S]*?)(?=4\.|\n\d+\.|\Z)/);
@@ -222,23 +182,29 @@ export default function ContentCrawler({
         const prosMatch = rawResponse.match(/6\.\s*([\s\S]*?)(?=7\.|\n\d+\.|\Z)/);
         const prosText = prosMatch ? prosMatch[1].trim() : '';
         const pros = prosText.split(/\n+/)
+          // Supprimer complètement les marqueurs de liste (puces, tirets, etc.)
           .map((line: string) => line.replace(/^[•\-\*]\s*/, '').trim())
+          // Supprimer les styles markdown
           .map((line: string) => line.replace(/\*\*(.*?)\*\*/g, '$1'))
+          // Supprimer les lignes qui commencent par "Avantages:" ou similaire
+          .filter((line: string) => !line.match(/^(Avantages|Points forts|Pros|Forces)\s*[:]/i))
           .filter(Boolean);
         
         // On extrait les inconvénients
         const consMatch = rawResponse.match(/7\.\s*([\s\S]*?)(?=8\.|\n\d+\.|\Z)/);
         const consText = consMatch ? consMatch[1].trim() : '';
         const cons = consText.split(/\n+/)
+          // Supprimer complètement les marqueurs de liste (puces, tirets, etc.)
           .map((line: string) => line.replace(/^[•\-\*]\s*/, '').trim())
+          // Supprimer les styles markdown
           .map((line: string) => line.replace(/\*\*(.*?)\*\*/g, '$1'))
+          // Supprimer les lignes qui commencent par "Inconvénients:" ou similaire
+          .filter((line: string) => !line.match(/^(Inconvénients|Points faibles|Cons|Faiblesses|Limitations)\s*[:]/i))
           .filter(Boolean);
 
         // Mise à jour des champs du formulaire
         onDataGenerated({
           description: description,
-          name: name,
-          summary: summary,
           seoTitle: seoTitle,
           seoDescription: seoDescription,
           pros: pros,
@@ -249,7 +215,7 @@ export default function ContentCrawler({
         const descriptionWordCount = description ? description.split(/\s+/).length : 0;
         addLog(`Description détaillée envoyée (${descriptionWordCount} mots)`, 'success');
         
-        addLog(`Informations extraites: nom, description structurée, résumé, SEO, ${pros.length} avantages, ${cons.length} inconvénients`, 'success');
+        addLog(`Informations extraites: description structurée, SEO Title, SEO Description, ${pros.length} avantages, ${cons.length} inconvénients`, 'success');
       }
 
       addLog('Extraction de contenu et analyse Gemini terminées', 'success');

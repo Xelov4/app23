@@ -140,6 +140,43 @@ export default function ImageSocialCrawler({
         socialLinksFound: socialCount
       }));
 
+      // Lancer l'analyse approfondie des liens d'affiliation dans le footer
+      setStatus('Analyse des liens d\'affiliation dans le footer...');
+      addLog('Recherche de programme d\'affiliation dans les liens du site...', 'info');
+      
+      try {
+        const affiliateResponse = await fetch('/api/admin/affiliate-crawler', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: normalizedUrl
+          }),
+        });
+        
+        if (affiliateResponse.ok) {
+          const affiliateData = await affiliateResponse.json();
+          
+          if (affiliateData.mostProbableAffiliateUrl) {
+            addLog(`URL d'affiliation probable trouvée avec confiance de ${affiliateData.confidence}/10`, 'success');
+            addLog(`URL d'affiliation: ${affiliateData.mostProbableAffiliateUrl}`, 'info');
+            
+            // Mettre à jour les données de crawler avec l'URL d'affiliation trouvée
+            if (affiliateData.confidence >= 5) {
+              crawlData.socialLinks.affiliate = affiliateData.mostProbableAffiliateUrl;
+              crawlData.hasAffiliateProgram = true;
+              setCrawlData({...crawlData});
+            }
+          } else {
+            addLog('Aucun programme d\'affiliation trouvé dans les liens du footer', 'info');
+          }
+        }
+      } catch (err) {
+        console.error('Erreur lors de l\'analyse des liens d\'affiliation:', err);
+        addLog(`Analyse des liens d'affiliation échouée: ${(err as Error).message}`, 'warning');
+      }
+
       // Mise à jour des champs du formulaire
       onDataGenerated({
         websiteUrl: crawlData.finalUrl || normalizedUrl,

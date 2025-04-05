@@ -37,11 +37,17 @@ interface SocialLinks {
 function extractToolName(url: string): string {
   try {
     const urlObj = new URL(url);
+    // Prendre le nom de domaine sans www et sans l'extension
     return urlObj.hostname.replace(/^www\./, '').split('.')[0];
   } catch (e) {
-    // Si l'URL n'est pas valide, générer un nom aléatoire
+    // Si l'URL n'est pas valide, générer un nom générique
     return `tool-${Date.now()}`;
   }
+}
+
+// Fonction pour nettoyer un nom de fichier (supprimer caractères spéciaux)
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 }
 
 export async function POST(req: Request) {
@@ -105,11 +111,15 @@ export async function POST(req: Request) {
     
     // Déterminer le nom de l'outil et le nom du fichier de capture d'écran
     const toolName = extractToolName(normalizedUrl);
-    const screenshotFilename = `${toolName}-${uuidv4().substring(0, 8)}.png`;
+    const sanitizedToolName = sanitizeFilename(toolName);
+    // Utiliser simplement le nom de l'outil comme nom de fichier (sans UUID)
+    const screenshotFilename = `${sanitizedToolName}.png`;
     const screenshotFilePath = path.join(imageDir, screenshotFilename);
     const relativePath = `/images/tools/${screenshotFilename}`;
     imagePath = relativePath; // Stocker le chemin relatif pour l'affichage
-      
+    
+    console.log(`[${new Date().toLocaleTimeString()}] Nom de l'outil détecté: ${toolName}, fichier d'image: ${screenshotFilename}`);
+    
     try {
       // Naviguer vers la page d'accueil
       const page = await browser.newPage();
@@ -124,6 +134,11 @@ export async function POST(req: Request) {
       
       // Attendre que la page soit chargée
       await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 5000)));
+      
+      // Vérifier si le fichier existe déjà et le supprimer si c'est le cas
+      if (fs.existsSync(screenshotFilePath)) {
+        console.log(`[${new Date().toLocaleTimeString()}] Le fichier ${screenshotFilename} existe déjà et sera écrasé.`);
+      }
       
       // Prendre une capture d'écran de la page d'accueil
       await page.screenshot({ path: screenshotFilePath });

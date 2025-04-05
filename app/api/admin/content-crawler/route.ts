@@ -32,14 +32,15 @@ ${socialLinks.join('\n')}
 CONTENU DU SITE:
 ${content.substring(0, 50000)}
 
-Basé sur ce contenu, remplis ces champs pour notre base de données:
+Basé sur ce contenu, remplis ces champs pour notre base de données. Fournis une réponse simple et directe SANS ajouter d'introduction comme "Description détaillée:" ou autre. N'utilise PAS de balises HTML. Écris un texte simple, direct et qui s'adresse au lecteur:
+
 1. Nom de l'outil (court et précis, max 50 caractères)
-2. Description détaillée (500-1000 caractères)
+2. Description détaillée (environ 500 caractères, texte simple sans balises HTML, sans introduire par "Description:" ou tout autre préfixe)
 3. Résumé concis (max 150 caractères)
-4. Titre SEO (max 60 caractères)
+4. Titre SEO (max 50 caractères, NE PAS ajouter "| Video IA" à la fin, ce sera ajouté automatiquement)
 5. Description SEO (max 155 caractères)
-6. Avantages (liste de 3-5 points)
-7. Inconvénients (liste de 2-3 points)
+6. Avantages (liste de 3-5 points, sans symboles comme "*" ou "-", sans introduire par "Avantages:", uniquement le texte des points)
+7. Inconvénients (liste de 2-3 points, sans symboles comme "*" ou "-", sans introduire par "Inconvénients:", uniquement le texte des points)
 8. A-t-il un programme d'affiliation? (oui/non)
 9. Détails du programme d'affiliation (si applicable)
 10. URL d'affiliation (si applicable)

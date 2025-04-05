@@ -306,10 +306,10 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
     // Extraire les champs qui nous intéressent en vérifiant qu'ils sont dans le modèle
     // Commençons par les champs simples (non-relations)
     const validFields = [
-      'name', 'description', 'websiteUrl', 'pricingType', 'pricingDetails',
+      'name', 'description', 'detailedDescription', 'websiteUrl', 'pricingType', 'pricingDetails',
       'logoUrl', 'twitterUrl', 'instagramUrl', 'facebookUrl', 'linkedinUrl',
       'githubUrl', 'youtubeUrl', 'appStoreUrl', 'playStoreUrl', 'affiliateUrl',
-      'hasAffiliateProgram', 'isActive'
+      'hasAffiliateProgram', 'isActive', 'httpCode', 'httpChain', 'rating', 'reviewCount'
     ];
     
     // Extraire les champs de base valides
@@ -318,6 +318,15 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
       if (field in requestData && requestData[field] !== undefined) {
         baseData[field] = requestData[field];
       }
+    }
+    
+    // Journaliser les champs détectés pour le débogage
+    console.log("Champs détectés dans la requête:", Object.keys(requestData).join(", "));
+    console.log("Champs valides pour mise à jour:", Object.keys(baseData).join(", "));
+    
+    // Vérifier spécifiquement si detailedDescription est présent et correctement traité
+    if (requestData.detailedDescription !== undefined) {
+      console.log("detailedDescription trouvé:", requestData.detailedDescription.substring(0, 100) + "...");
     }
     
     // Gérer le slug si le nom a changé
