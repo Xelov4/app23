@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
       name, 
       slug, 
       description, 
-      imageUrl 
+      imageUrl,
+      iconName,
+      seoTitle,
+      metaDescription
     } = body;
 
     // Vérification si une catégorie avec ce slug existe déjà
@@ -63,13 +66,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Vérifier si l'icône est déjà utilisée par une autre catégorie
+    if (iconName) {
+      const categoryWithIcon = await db.category.findFirst({
+        where: { iconName }
+      });
+
+      if (categoryWithIcon) {
+        return NextResponse.json(
+          { message: 'Cette icône est déjà utilisée par une autre catégorie' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Création de la catégorie
     const newCategory = await db.category.create({
       data: {
         name,
         slug,
         description,
-        imageUrl: imageUrl || null
+        imageUrl: imageUrl || null,
+        iconName: iconName || null,
+        seoTitle: seoTitle || null,
+        metaDescription: metaDescription || null
       }
     });
 

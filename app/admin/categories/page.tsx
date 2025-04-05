@@ -12,10 +12,104 @@ import {
   Filter, 
   ArrowUpDown,
   Layers,
-  Info
+  Info,
+  Video,
+  Camera,
+  Play,
+  Film,
+  Youtube,
+  MessageSquare,
+  Mic,
+  Music,
+  Headphones,
+  Volume2,
+  Radio,
+  Image,
+  ImagePlus,
+  FileImage,
+  Upload,
+  Download,
+  Crop,
+  Scissors,
+  Copy,
+  Paintbrush,
+  Palette,
+  Wand2,
+  Pencil,
+  Type,
+  FileText,
+  ListOrdered,
+  ListChecks,
+  Brain,
+  Cpu,
+  Code,
+  Bot,
+  Lightbulb,
+  Sparkles,
+  GitBranch,
+  Github,
+  Database,
+  Cloud,
+  Terminal,
+  Settings,
+  LayoutGrid
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+// Définition de toutes les icônes disponibles
+const allIcons: Record<string, React.ReactNode> = {
+  // Vidéo
+  'video': <Video className="h-5 w-5 text-primary" />,
+  'camera': <Camera className="h-5 w-5 text-primary" />,
+  'play': <Play className="h-5 w-5 text-primary" />,
+  'film': <Film className="h-5 w-5 text-primary" />,
+  'youtube': <Youtube className="h-5 w-5 text-primary" />,
+  'message-square': <MessageSquare className="h-5 w-5 text-primary" />,
+  
+  // Audio
+  'mic': <Mic className="h-5 w-5 text-primary" />,
+  'music': <Music className="h-5 w-5 text-primary" />,
+  'headphones': <Headphones className="h-5 w-5 text-primary" />,
+  'volume2': <Volume2 className="h-5 w-5 text-primary" />,
+  'radio': <Radio className="h-5 w-5 text-primary" />,
+  
+  // Photo
+  'image': <Image className="h-5 w-5 text-primary" />,
+  'image-plus': <ImagePlus className="h-5 w-5 text-primary" />,
+  'file-image': <FileImage className="h-5 w-5 text-primary" />,
+  'upload': <Upload className="h-5 w-5 text-primary" />,
+  'download': <Download className="h-5 w-5 text-primary" />,
+  
+  // Édition
+  'crop': <Crop className="h-5 w-5 text-primary" />,
+  'scissors': <Scissors className="h-5 w-5 text-primary" />,
+  'edit': <Edit className="h-5 w-5 text-primary" />,
+  'copy': <Copy className="h-5 w-5 text-primary" />,
+  'paintbrush': <Paintbrush className="h-5 w-5 text-primary" />,
+  'palette': <Palette className="h-5 w-5 text-primary" />,
+  'wand2': <Wand2 className="h-5 w-5 text-primary" />,
+  'pencil': <Pencil className="h-5 w-5 text-primary" />,
+  'type': <Type className="h-5 w-5 text-primary" />,
+  'file-text': <FileText className="h-5 w-5 text-primary" />,
+  'list-ordered': <ListOrdered className="h-5 w-5 text-primary" />,
+  'list-checks': <ListChecks className="h-5 w-5 text-primary" />,
+  
+  // IA et outils
+  'brain': <Brain className="h-5 w-5 text-primary" />,
+  'cpu': <Cpu className="h-5 w-5 text-primary" />,
+  'code': <Code className="h-5 w-5 text-primary" />,
+  'bot': <Bot className="h-5 w-5 text-primary" />,
+  'lightbulb': <Lightbulb className="h-5 w-5 text-primary" />,
+  'sparkles': <Sparkles className="h-5 w-5 text-primary" />,
+  'git-branch': <GitBranch className="h-5 w-5 text-primary" />,
+  'github': <Github className="h-5 w-5 text-primary" />,
+  'database': <Database className="h-5 w-5 text-primary" />,
+  'cloud': <Cloud className="h-5 w-5 text-primary" />,
+  'terminal': <Terminal className="h-5 w-5 text-primary" />,
+  'settings': <Settings className="h-5 w-5 text-primary" />,
+  'layout-grid': <LayoutGrid className="h-5 w-5 text-primary" />
+};
 
 // Types
 interface Category {
@@ -24,10 +118,20 @@ interface Category {
   slug: string;
   description: string;
   imageUrl: string | null;
+  iconName: string | null;
   toolCount: number;
   createdAt: string;
   updatedAt: string;
 }
+
+// Fonction pour afficher l'icône
+const DynamicIcon = ({ iconName }: { iconName: string | null }) => {
+  if (!iconName || !(iconName in allIcons)) {
+    return <Layers className="h-5 w-5 text-gray-500" />;
+  }
+  
+  return allIcons[iconName];
+};
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -181,15 +285,8 @@ export default function CategoriesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                            {category.imageUrl ? (
-                              <img 
-                                src={category.imageUrl} 
-                                alt={category.name} 
-                                className="h-10 w-10 rounded-full"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                                }}
-                              />
+                            {category.iconName ? (
+                              <DynamicIcon iconName={category.iconName} />
                             ) : (
                               <Layers className="h-5 w-5 text-gray-500" />
                             )}

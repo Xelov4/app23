@@ -29,6 +29,11 @@ import 'react-quill-new/dist/quill.snow.css';
 
 // Import du composant AiOptimizer
 import AiOptimizer from '@/app/components/AiOptimizer';
+// Import du composant IconSelector - Remplacé par SimpleIconSelector
+import SimpleIconSelector from '@/app/components/SimpleIconSelector';
+// Import du hook pour les icônes utilisées
+import useUsedIcons from '@/app/hooks/useUsedIcons';
+import CategoryAiOptimizer from '@/app/components/CategoryAiOptimizer';
 
 // Types
 interface Category {
@@ -37,6 +42,7 @@ interface Category {
   slug: string;
   description: string;
   imageUrl: string | null;
+  iconName: string | null;
   seoTitle: string | null;
   metaDescription: string | null;
   createdAt: string;
@@ -68,6 +74,7 @@ export default function EditCategoryPage({ params }: PageProps) {
   const [newSlug, setNewSlug] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [iconName, setIconName] = useState<string | null>(null);
   const [seoTitle, setSeoTitle] = useState<string | null>(null);
   const [metaDescription, setMetaDescription] = useState<string | null>(null);
   
@@ -76,6 +83,9 @@ export default function EditCategoryPage({ params }: PageProps) {
   
   // Statistiques
   const [toolCount, setToolCount] = useState(0);
+  
+  // Récupérer les icônes déjà utilisées
+  const { usedIcons, isLoading: isLoadingIcons } = useUsedIcons(category?.id);
   
   // Configuration des modules Quill
   const quillModules = {
@@ -113,6 +123,7 @@ export default function EditCategoryPage({ params }: PageProps) {
         setNewSlug(data.slug);
         setDescription(data.description);
         setImageUrl(data.imageUrl);
+        setIconName(data.iconName);
         setSeoTitle(data.seoTitle || '');
         setMetaDescription(data.metaDescription || '');
         
@@ -152,6 +163,7 @@ export default function EditCategoryPage({ params }: PageProps) {
           name,
           description,
           imageUrl,
+          iconName,
           seoTitle,
           metaDescription,
           newSlug: newSlug !== slug ? newSlug : undefined, // Envoyer le nouveau slug uniquement s'il a changé
@@ -183,6 +195,21 @@ export default function EditCategoryPage({ params }: PageProps) {
   // Toggle entre les modes d'édition de la description
   const toggleDescriptionMode = () => {
     setDescriptionMode(prevMode => prevMode === 'visual' ? 'code' : 'visual');
+  };
+  
+  const handleUpdateFields = (data: {
+    description?: string;
+    seoTitle?: string;
+    metaDescription?: string;
+    relatedTags?: string[];
+  }) => {
+    if (data.description) setDescription(data.description);
+    if (data.seoTitle) setSeoTitle(data.seoTitle);
+    if (data.metaDescription) setMetaDescription(data.metaDescription);
+    if (data.relatedTags && data.relatedTags.length > 0) {
+      // Ici vous pourriez traiter les tags suggérés
+      console.log('Tags associés suggérés:', data.relatedTags);
+    }
   };
   
   // Prévisualisation de la page
@@ -296,45 +323,70 @@ export default function EditCategoryPage({ params }: PageProps) {
       )}
       
       {/* Formulaire */}
-      <form onSubmit={handleSubmit}>
-        {/* Section des informations de base */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-800">
-            <FileText className="h-5 w-5 mr-2 text-primary" />
-            Informations de base
-          </h2>
-          
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Nom de la catégorie
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Nom de la catégorie"
-            />
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Section 1: Informations de base */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-4 sm:p-6 border-b bg-gray-50">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <Layers className="h-5 w-5 mr-2 text-gray-500" />
+              Informations de base
+            </h3>
           </div>
-          
-          <div className="mb-0">
-            <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1">
-              Slug (URL)
-            </label>
-            <input
-              type="text"
-              id="slug"
-              value={newSlug}
-              onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="slug-de-la-categorie"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              L'URL de la catégorie sera: <span className="font-mono">/categories/{newSlug}</span>
-            </p>
+          <div className="p-4 sm:p-6 space-y-4">
+            {/* Nom */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Nom de la catégorie
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              />
+            </div>
+
+            {/* Slug */}
+            <div>
+              <label htmlFor="slug" className="block text-sm font-medium text-gray-700">
+                Slug (URL)
+              </label>
+              <div className="mt-1 flex rounded-md shadow-sm">
+                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                  /categories/
+                </span>
+                <input
+                  type="text"
+                  id="slug"
+                  name="slug"
+                  value={newSlug}
+                  onChange={(e) => setNewSlug(e.target.value.replace(/\s+/g, '-').toLowerCase())}
+                  className="flex-1 block w-full border-gray-300 rounded-none rounded-r-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                />
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                L'identifiant unique de la catégorie dans l'URL
+              </p>
+            </div>
+
+            {/* Icône (remplaçant l'URL de l'image) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Icône
+              </label>
+              <SimpleIconSelector 
+                value={iconName} 
+                onChange={setIconName}
+                usedIcons={usedIcons}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Choisissez une icône pour représenter cette catégorie. Chaque catégorie doit avoir une icône unique.
+              </p>
+            </div>
           </div>
         </div>
         
@@ -414,60 +466,6 @@ export default function EditCategoryPage({ params }: PageProps) {
           </div>
         </div>
         
-        {/* Section de l'image */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-800">
-            <Image className="h-5 w-5 mr-2 text-primary" />
-            Image
-          </h2>
-          
-          <div>
-            <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-              URL de l'image
-            </label>
-            <input
-              type="text"
-              id="imageUrl"
-              value={imageUrl || ''}
-              onChange={(e) => setImageUrl(e.target.value || null)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="https://exemple.com/image.jpg"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Dimensions recommandées: 800x600px (ratio 4:3). Format: JPG ou PNG.
-              Laissez vide si aucune image n'est associée à cette catégorie.
-            </p>
-            
-            {/* Prévisualisation de l'image */}
-            {imageUrl && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Prévisualisation</h3>
-                <div className="flex">
-                  <div className="h-40 w-40 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={imageUrl} 
-                      alt="Prévisualisation" 
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                      }}
-                    />
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <p className="text-sm font-medium text-gray-900">Informations</p>
-                    <p className="text-xs text-gray-500 mb-1">
-                      Nom: {imageUrl.split('/').pop()}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      URL: <span className="font-mono text-xs break-all">{imageUrl}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        
         {/* Section SEO */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-800">
@@ -482,42 +480,38 @@ export default function EditCategoryPage({ params }: PageProps) {
             <input
               type="text"
               id="seoTitle"
-              value={seoTitle || ''}
+              value={seoTitle}
               onChange={(e) => setSeoTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Titre optimisé pour les moteurs de recherche"
-              maxLength={60}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+              placeholder="Titre optimisé pour le référencement"
+              maxLength={70}
             />
-            <div className="mt-1 flex justify-between items-center">
-              <p className="text-xs text-gray-500">
-                Le titre qui apparaîtra dans les résultats de recherche (idéalement 50-60 caractères)
-              </p>
-              <p className={`text-xs font-medium ${seoTitle && seoTitle.length > 55 ? 'text-amber-600' : 'text-gray-500'}`}>
-                {seoTitle ? seoTitle.length : 0}/60
-              </p>
+            <div className="text-xs text-gray-500 mt-1 flex justify-between">
+              <span>{seoTitle.length}/70 caractères</span>
+              <span className={seoTitle.length > 60 ? (seoTitle.length > 70 ? "text-red-500" : "text-orange-500") : "text-green-500"}>
+                {seoTitle.length > 60 ? (seoTitle.length > 70 ? "Trop long" : "Limite haute") : "Optimal"}
+              </span>
             </div>
           </div>
           
-          <div className="mb-4">
+          <div className="mb-6">
             <label htmlFor="metaDescription" className="block text-sm font-medium text-gray-700 mb-1">
-              Meta Description
+              Méta-description
             </label>
             <textarea
               id="metaDescription"
-              value={metaDescription || ''}
+              value={metaDescription}
               onChange={(e) => setMetaDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Description courte pour les moteurs de recherche"
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+              placeholder="Description courte optimisée pour le référencement (150-160 caractères max.)"
               maxLength={160}
             />
-            <div className="mt-1 flex justify-between items-center">
-              <p className="text-xs text-gray-500">
-                Description qui apparaîtra dans les résultats de recherche (idéalement 120-160 caractères)
-              </p>
-              <p className={`text-xs font-medium ${metaDescription && metaDescription.length > 145 ? 'text-amber-600' : 'text-gray-500'}`}>
-                {metaDescription ? metaDescription.length : 0}/160
-              </p>
+            <div className="text-xs text-gray-500 mt-1 flex justify-between">
+              <span>{metaDescription.length}/160 caractères</span>
+              <span className={metaDescription.length > 145 ? (metaDescription.length > 160 ? "text-red-500" : "text-orange-500") : (metaDescription.length < 120 ? "text-orange-500" : "text-green-500")}>
+                {metaDescription.length > 145 ? (metaDescription.length > 160 ? "Trop long" : "Limite haute") : (metaDescription.length < 120 ? "Trop court" : "Optimal")}
+              </span>
             </div>
           </div>
           
@@ -546,67 +540,10 @@ export default function EditCategoryPage({ params }: PageProps) {
             Sélectionnez les champs à optimiser et laissez l'IA vous proposer des améliorations.
           </p>
           
-          <AiOptimizer
-            title="Optimiser cette catégorie"
-            entityName={name}
-            entityType="catégorie"
-            contextDescription={`Cette catégorie concerne des outils d'IA pour ${name}. Le site vidéo-ia.net est spécialisé dans la présentation d'outils d'intelligence artificielle pour la création et l'édition de contenu vidéo et multimédia.`}
-            fields={[
-              {
-                id: "name",
-                label: "Nom de la catégorie",
-                value: name,
-                description: "Nom court et descriptif de la catégorie",
-                selectable: false
-              },
-              {
-                id: "description",
-                label: "Description complète",
-                value: description,
-                description: "Description détaillée de la catégorie avec support HTML"
-              },
-              {
-                id: "seoTitle",
-                label: "Titre SEO",
-                value: seoTitle || "",
-                description: "Titre optimisé pour les moteurs de recherche (50-60 caractères)"
-              },
-              {
-                id: "metaDescription",
-                label: "Meta description",
-                value: metaDescription || "",
-                description: "Description courte pour les moteurs de recherche (120-160 caractères)"
-              }
-            ]}
-            onFieldsUpdate={(updatedFields) => {
-              // Mise à jour des champs en fonction des résultats de l'IA
-              console.log("Champs mis à jour reçus:", updatedFields);
-              
-              updatedFields.forEach(field => {
-                switch (field.id) {
-                  case "name":
-                    setName(field.value);
-                    break;
-                  case "description":
-                    setDescription(field.value);
-                    break;
-                  case "seoTitle":
-                    setSeoTitle(field.value);
-                    break;
-                  case "metaDescription":
-                    setMetaDescription(field.value);
-                    break;
-                }
-              });
-              
-              // Message de confirmation
-              setSuccessMessage("Champs optimisés avec succès par l'IA!");
-              
-              // Faire défiler vers le haut pour voir les modifications
-              setTimeout(() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }, 500);
-            }}
+          <CategoryAiOptimizer 
+            name={name}
+            onUpdateFields={handleUpdateFields}
+            additionalContext={`Cette catégorie concerne les outils d'IA vidéo pour: ${description || ''}`}
           />
         </div>
         

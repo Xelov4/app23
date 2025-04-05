@@ -35,14 +35,22 @@ model Tool {
   facebookUrl       String?
   linkedinUrl       String?
   githubUrl         String?
+  youtubeUrl        String?
+  appStoreUrl       String?
+  playStoreUrl      String?
   isActive          Boolean             @default(true)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   httpChain         String?
+  affiliateUrl      String?
+  hasAffiliateProgram Boolean           @default(false)
   CategoriesOnTools CategoriesOnTools[]
   Review            Review[]
   TagsOnTools       TagsOnTools[]
   UseCasesOnTools   UseCasesOnTools[]
+  FeaturesOnTools   FeaturesOnTools[]
+  UserTypesOnTools  UserTypesOnTools[]
+  ToolsOnSearches   ToolsOnSearches[]
 }
 
 model Category {
@@ -51,6 +59,7 @@ model Category {
   slug              String              @unique
   description       String
   imageUrl          String?
+  iconName          String?
   seoTitle          String?
   metaDescription   String?
   createdAt         DateTime            @default(now())
@@ -62,6 +71,8 @@ model Tag {
   id          String        @id @default(cuid())
   name        String
   slug        String        @unique
+  seoTitle    String?
+  metaDescription String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   TagsOnTools TagsOnTools[]
@@ -123,4 +134,92 @@ model UseCasesOnTools {
   @@id([toolId, useCaseId])
   @@index([toolId])
   @@index([useCaseId])
+}
+
+model Feature {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  description      String?
+  seoTitle         String?
+  metaDescription  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  FeaturesOnTools  FeaturesOnTools[]
+}
+
+model FeaturesOnTools {
+  toolId     String
+  featureId  String
+  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  Feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, featureId])
+  @@index([featureId])
+  @@index([toolId])
+}
+
+model UserType {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  description      String?
+  seoTitle         String?
+  metaDescription  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  UserTypesOnTools UserTypesOnTools[]
+}
+
+model UserTypesOnTools {
+  toolId     String
+  userTypeId String
+  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  UserType   UserType @relation(fields: [userTypeId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, userTypeId])
+  @@index([userTypeId])
+  @@index([toolId])
+}
+
+model Search {
+  id              String           @id @default(cuid())
+  keyword         String           @unique
+  slug            String           @unique
+  description     String?
+  seoTitle        String?
+  metaDescription String?
+  isActive        Boolean          @default(false)
+  searchCount     Int              @default(0)
+  lastSearchedAt  DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  SearchData      SearchData[]
+  ToolsOnSearches ToolsOnSearches[]
+}
+
+model SearchData {
+  id          String   @id @default(cuid())
+  searchId    String
+  searchTerm  String
+  count       Int      @default(1)
+  lastSearchedAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Search      Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
+
+  @@index([searchId])
+}
+
+model ToolsOnSearches {
+  toolId     String
+  searchId   String
+  relevance  Float    @default(1.0)
+  createdAt  DateTime @default(now())
+  Tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  Search     Search   @relation(fields: [searchId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, searchId])
+  @@index([searchId])
+  @@index([toolId])
 }

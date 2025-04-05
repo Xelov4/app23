@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  Menu, Home, Plus, Layers, Edit, Settings, LogOut, 
-  Database, Image, TrendingUp, Zap, ChevronRight,
-  Users, FileText, BarChart, LayoutDashboard, Camera, ListChecks,
-  PlusCircle, Pencil, Globe, Bot
+  Menu, Home, Layers, Settings, LogOut, 
+  ChevronRight, LayoutDashboard, Camera,
+  Globe, Bot, Tag, ListChecks, Users, 
+  Database, Upload, Link as LinkIcon, Search, BarChart
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -32,6 +32,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         // Si l'utilisateur n'est pas connecté et qu'il n'est pas sur la page de connexion
         if (!data.authenticated && pathname !== '/admin' && pathname !== '/admin/') {
           router.push('/admin');
+        }
+        
+        // Rediriger vers le dashboard si l'utilisateur est connecté et sur la page d'accueil admin
+        if (data.authenticated && (pathname === '/admin' || pathname === '/admin/')) {
+          router.push('/admin/tool-v2');
         }
       } catch (err) {
         console.error('Erreur lors de la vérification de session:', err);
@@ -69,49 +74,42 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // Configuration de la navigation
   const navigationItems = [
     {
-      category: "Tableaux de bord",
+      category: "Administration",
       items: [
         {
           title: 'Dashboard',
-          href: '/admin/dashboard',
+          href: '/admin/tool-v2',
           icon: <LayoutDashboard className="h-5 w-5" />,
-        },
-        {
-          title: 'Dashboard v2',
-          href: '/admin/dashboard-v2',
-          icon: <LayoutDashboard className="h-5 w-5" />,
-          new: true, // Pour indiquer que c'est un nouvel élément
         },
       ]
     },
     {
-      category: "Gestion du contenu",
+      category: "Contenu",
       items: [
         {
-          title: 'Gérer les outils',
-          href: '/admin/tool-v2',
+          title: 'Catégories',
+          href: '/admin/categories',
+          icon: <Layers className="h-5 w-5" />,
+        },
+        {
+          title: 'Outils',
+          href: '/admin/tools',
           icon: <Settings className="h-5 w-5" />,
         },
         {
-          title: 'Toutes les catégories',
-          href: '/admin/categories',
-          icon: <Layers className="h-5 w-5" />,
-          new: true,
+          title: 'Tags',
+          href: '/admin/tags',
+          icon: <Tag className="h-5 w-5" />,
         },
         {
-          title: 'Enrichir les outils',
-          href: '/admin/enrichir',
-          icon: <Edit className="h-5 w-5" />,
+          title: 'Fonctionnalités',
+          href: '/admin/features',
+          icon: <ListChecks className="h-5 w-5" />,
         },
         {
-          title: 'Ajouter un contenu',
-          href: '/admin/add',
-          icon: <PlusCircle className="h-5 w-5" />,
-        },
-        {
-          title: 'Modifier un contenu',
-          href: '/admin/modify',
-          icon: <Pencil className="h-5 w-5" />,
+          title: 'Types d\'utilisateurs',
+          href: '/admin/users',
+          icon: <Users className="h-5 w-5" />,
         },
       ]
     },
@@ -122,7 +120,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           title: 'GeminiIA',
           href: '/admin/gemini-ia',
           icon: <Bot className="h-5 w-5" />,
-          new: true,
         },
         {
           title: 'Captures d\'écran',
@@ -130,17 +127,47 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           icon: <Camera className="h-5 w-5" />,
         },
         {
-          title: 'Traitement par lots',
-          href: '/admin/bulk',
-          icon: <ListChecks className="h-5 w-5" />,
-        },
-        {
           title: 'Crawl & Import',
           href: '/admin/crawl',
           icon: <Globe className="h-5 w-5" />,
         },
+        {
+          title: 'Affiliation',
+          href: '/admin/affiliation',
+          icon: <LinkIcon className="h-5 w-5" />,
+        },
       ]
-    }
+    },
+    {
+      category: "Recherche",
+      items: [
+        {
+          title: 'Données de recherche',
+          href: '/admin/search/data',
+          icon: <BarChart className="h-5 w-5" />,
+        },
+        {
+          title: 'Pages de recherche',
+          href: '/admin/search/pages',
+          icon: <Search className="h-5 w-5" />,
+        },
+      ]
+    },
+    {
+      category: "Base de données",
+      items: [
+        {
+          title: 'Explorer',
+          href: '/admin/database/explorer',
+          icon: <Database className="h-5 w-5" />,
+        },
+        {
+          title: 'Importer',
+          href: '/admin/database/import',
+          icon: <Upload className="h-5 w-5" />,
+        },
+      ],
+    },
   ];
 
   return (
@@ -172,11 +199,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   >
                     <span className="mr-3">{item.icon}</span>
                     {item.title}
-                    {item.new && (
-                      <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                        Nouveau
-                      </span>
-                    )}
                   </Link>
                 ))}
               </nav>
@@ -242,11 +264,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     >
                       <span className="mr-3">{item.icon}</span>
                       {item.title}
-                      {item.new && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                          Nouveau
-                        </span>
-                      )}
                     </Link>
                   ))}
                 </nav>

@@ -12,6 +12,11 @@ import {
   Plus
 } from 'lucide-react';
 
+// Importation du sélecteur d'icônes
+import SimpleIconSelector from '@/app/components/SimpleIconSelector';
+// Importation du hook pour les icônes utilisées
+import useUsedIcons from '@/app/hooks/useUsedIcons';
+
 export default function NewCategoryPage() {
   const router = useRouter();
   
@@ -23,7 +28,10 @@ export default function NewCategoryPage() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [iconName, setIconName] = useState<string | null>(null);
+  
+  // Récupérer les icônes déjà utilisées
+  const { usedIcons, isLoading: isLoadingIcons } = useUsedIcons();
   
   // Mettre à jour automatiquement le slug à partir du nom
   const handleNameChange = (value: string) => {
@@ -51,7 +59,7 @@ export default function NewCategoryPage() {
           name,
           slug,
           description,
-          imageUrl,
+          iconName,
         }),
       });
       
@@ -162,42 +170,17 @@ export default function NewCategoryPage() {
         </div>
         
         <div className="mb-8">
-          <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-            URL de l'image
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Icône
           </label>
-          <input
-            type="text"
-            id="imageUrl"
-            value={imageUrl || ''}
-            onChange={(e) => setImageUrl(e.target.value || null)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="https://exemple.com/image.jpg"
+          <SimpleIconSelector 
+            value={iconName} 
+            onChange={setIconName}
+            usedIcons={usedIcons}
           />
           <p className="mt-1 text-xs text-gray-500">
-            Laissez vide si aucune image n'est associée à cette catégorie
+            Choisissez une icône pour représenter cette catégorie. Chaque catégorie doit avoir une icône unique.
           </p>
-          
-          {/* Prévisualisation de l'image */}
-          {imageUrl && (
-            <div className="mt-3 flex items-center">
-              <div className="h-16 w-16 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden">
-                <img 
-                  src={imageUrl} 
-                  alt="Prévisualisation" 
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                  }}
-                />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-900">Prévisualisation</p>
-                <p className="text-xs text-gray-500">
-                  {imageUrl.split('/').pop()}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
         
         {/* Boutons d'action */}

@@ -916,8 +916,8 @@ export default function ToolV2Page() {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des outils</h1>
-          <p className="text-gray-500">Gérez tous les outils de la plateforme dans une interface avancée.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500">Gérez tous les outils de la plateforme</p>
         </div>
         
         <div className="flex flex-wrap gap-3">

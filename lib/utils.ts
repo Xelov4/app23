@@ -97,3 +97,18 @@ export function isSmallScreen(): boolean {
   if (typeof window === 'undefined') return false;
   return window.innerWidth < 768;
 }
+
+/**
+ * Convertit une chaîne en slug URL (minuscules, sans accents, tirets à la place des espaces)
+ */
+export function slugify(text: string): string {
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Enlever les accents
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-') // Remplacer les espaces par des tirets
+    .replace(/[^\w-]+/g, '') // Enlever les caractères non alphanumériques
+    .replace(/--+/g, '-'); // Remplacer les tirets multiples par un seul
+}

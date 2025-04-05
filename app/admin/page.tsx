@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get('redirect') || '/admin/dashboard';
+  const redirectPath = searchParams.get('redirect') || '/admin/tool-v2';
 
   // Vérifier si déjà connecté
   useEffect(() => {

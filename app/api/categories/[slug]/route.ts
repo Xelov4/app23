@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
   try {
     const slug = params.slug;
     const body = await request.json();
-    const { name, description, imageUrl, newSlug, seoTitle, metaDescription } = body;
+    const { name, description, imageUrl, iconName, newSlug, seoTitle, metaDescription } = body;
 
     // Vérifier si la catégorie existe
     const existingCategory = await db.category.findUnique({
@@ -73,6 +73,23 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
       }
     }
 
+    // Vérifier si l'icône est déjà utilisée par une autre catégorie
+    if (iconName) {
+      const categoryWithIcon = await db.category.findFirst({
+        where: {
+          iconName,
+          id: { not: existingCategory.id } // Exclure la catégorie actuelle
+        }
+      });
+
+      if (categoryWithIcon) {
+        return NextResponse.json(
+          { message: 'Cette icône est déjà utilisée par une autre catégorie' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Mettre à jour la catégorie
     const updatedCategory = await db.category.update({
       where: { slug },
@@ -81,6 +98,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ slug:
         slug: newSlug || undefined,
         description: description !== undefined ? description : undefined,
         imageUrl: imageUrl !== undefined ? imageUrl : undefined,
+        iconName: iconName !== undefined ? iconName : undefined,
         seoTitle: seoTitle !== undefined ? seoTitle : undefined,
         metaDescription: metaDescription !== undefined ? metaDescription : undefined
       }
