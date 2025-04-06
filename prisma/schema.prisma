@@ -224,3 +224,17 @@ model ToolsOnSearches {
   @@index([searchId])
   @@index([toolId])
 }
+
+model SequenceHistory {
+  id            String   @id @default(cuid())
+  toolId        String   
+  toolName      String
+  startTime     DateTime
+  endTime       DateTime?
+  success       Boolean
+  processResults String   // JSON string containing process results
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([toolId])
+}

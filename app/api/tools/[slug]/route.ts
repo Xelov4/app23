@@ -294,14 +294,29 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
     
     console.log("Données reçues pour mise à jour:", requestData);
     
-    // Vérifier si l'outil existe
-    const existingTool = await db.tool.findUnique({
-      where: { slug }
-    });
+    // Vérifier si le slug est un UUID (ID d'outil) plutôt qu'un slug textuel
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$|^[a-z0-9]{24,36}$/.test(slug);
+    
+    // Chercher l'outil par ID ou par slug selon le cas
+    let existingTool;
+    if (isUuid) {
+      existingTool = await db.tool.findUnique({
+        where: { id: slug }
+      });
+      console.log(`Recherche de l'outil par ID: ${slug}`);
+    } else {
+      existingTool = await db.tool.findUnique({
+        where: { slug }
+      });
+      console.log(`Recherche de l'outil par slug: ${slug}`);
+    }
     
     if (!existingTool) {
+      console.error(`Outil non trouvé pour ${isUuid ? 'ID' : 'slug'}: ${slug}`);
       return NextResponse.json({ error: 'Outil non trouvé' }, { status: 404 });
     }
+
+    console.log(`Outil trouvé: ${existingTool.id} (${existingTool.name})`);
 
     // Extraire les champs qui nous intéressent en vérifiant qu'ils sont dans le modèle
     // Commençons par les champs simples (non-relations)
@@ -309,7 +324,8 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
       'name', 'description', 'detailedDescription', 'websiteUrl', 'pricingType', 'pricingDetails',
       'logoUrl', 'twitterUrl', 'instagramUrl', 'facebookUrl', 'linkedinUrl',
       'githubUrl', 'youtubeUrl', 'appStoreUrl', 'playStoreUrl', 'affiliateUrl',
-      'hasAffiliateProgram', 'isActive', 'httpCode', 'httpChain', 'rating', 'reviewCount'
+      'hasAffiliateProgram', 'isActive', 'httpCode', 'httpChain', 'rating', 'reviewCount', 
+      'metaDescription'
     ];
     
     // Extraire les champs de base valides
@@ -330,7 +346,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
     }
     
     // Gérer le slug si le nom a changé
-    if (requestData.name !== existingTool.name) {
+    if (requestData.name !== undefined && requestData.name !== existingTool.name) {
       baseData.slug = slugify(requestData.name, { lower: true, strict: true });
     }
     
@@ -339,44 +355,55 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ slu
     
     // Préparation des données pour l'update dans Prisma
     const updateData: Record<string, any> = {
-      ...baseData,
-      // Mettre à jour les tags
-      TagsOnTools: {
+      ...baseData
+    };
+    
+    // Ajouter les relations seulement si elles sont présentes dans la requête
+    if (tags.length > 0) {
+      updateData.TagsOnTools = {
         deleteMany: {},
         create: tags.map((tagId: string) => ({
           tagId
         }))
-      },
-      // Mettre à jour les fonctionnalités
-      FeaturesOnTools: {
+      };
+    }
+    
+    if (features.length > 0) {
+      updateData.FeaturesOnTools = {
         deleteMany: {},
         create: features.map((featureId: string) => ({
           featureId
         }))
-      },
-      // Mettre à jour les types d'utilisateurs
-      UserTypesOnTools: {
+      };
+    }
+    
+    if (userTypes.length > 0) {
+      updateData.UserTypesOnTools = {
         deleteMany: {},
         create: userTypes.map((userTypeId: string) => ({
           userTypeId
         }))
-      },
-      // Mettre à jour les catégories
-      CategoriesOnTools: {
+      };
+    }
+    
+    if (categories.length > 0) {
+      updateData.CategoriesOnTools = {
         deleteMany: {},
         create: categories.map((categoryId: string) => ({
           categoryId
         }))
-      }
-    };
+      };
+    }
     
     console.log("Données nettoyées pour mise à jour:", updateData);
     
-    // Mettre à jour l'outil
+    // Mettre à jour l'outil par son ID pour plus de sécurité
     const updatedTool = await db.tool.update({
-      where: { slug },
+      where: { id: existingTool.id },
       data: updateData
     });
+    
+    console.log(`Outil mis à jour avec succès: ${updatedTool.id} (${updatedTool.name})`);
     
     return NextResponse.json({ 
       message: 'Outil mis à jour avec succès',

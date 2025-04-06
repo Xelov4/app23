@@ -117,9 +117,16 @@ export async function POST(req: Request) {
       }
       
       // Déterminer si l'URL est valide
+      // Considérer 2xx comme réussi, y compris 206 Partial Content
       if (validationResult.statusCode >= 200 && validationResult.statusCode < 300) {
         validationResult.isValid = true;
         validationResult.message = "L'URL est valide et accessible.";
+        
+        // Si le code est 206, forcer à 200 pour éviter des problèmes avec l'état actif
+        if (validationResult.statusCode === 206) {
+          validationResult.statusCode = 200;
+          validationResult.message += " (Code 206 Partial Content traité comme 200 OK)";
+        }
         
         if (validationResult.isRedirected) {
           validationResult.message += ` Redirection vers ${validationResult.finalUrl}`;
@@ -211,7 +218,7 @@ export async function POST(req: Request) {
           if (!validationResult.isValid && (validationResult.statusCode >= 400 || validationResult.statusCode === -1)) {
             updateData.isActive = false;
           } else if (validationResult.isValid) {
-            // Activer l'outil seulement si l'URL est vraiment valide avec un code 200
+            // Activer l'outil seulement si l'URL est vraiment valide avec un code 200-299
             updateData.isActive = true;
           }
           

@@ -7,7 +7,7 @@ import {
   Menu, Home, Layers, Settings, LogOut, 
   ChevronRight, LayoutDashboard, Camera,
   Globe, Bot, Tag, ListChecks, Users, 
-  Database, Upload, Link as LinkIcon, Search, BarChart
+  Database, Upload, Link as LinkIcon, Search, BarChart, PlayCircle
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -116,6 +116,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       category: "Maintenance",
       items: [
+        {
+          title: 'Séquençage',
+          href: '/admin/sequencage',
+          icon: <PlayCircle className="h-5 w-5" />,
+        },
         {
           title: 'GeminiIA',
           href: '/admin/gemini-ia',
