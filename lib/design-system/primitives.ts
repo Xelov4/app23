@@ -77,46 +77,56 @@ export function getImageWithFallback(url: string | null | undefined, fallback: s
 /**
  * Formate une date selon la locale française
  */
-export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+export function formatDate(dateString: string | Date) {
+  if (!dateString) return '';
+  
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  
+  // Option 1: utiliser Intl.DateTimeFormat pour un format localisé
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(date);
+  
+  // Option 2: format plus simple
+  // const day = date.getDate().toString().padStart(2, '0');
+  // const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  // const year = date.getFullYear();
+  // return `${day}/${month}/${year}`;
 }
 
 /**
  * Retourne l'affichage d'un type de tarification
  */
 export function formatPricingType(type: string): { label: string; className: string } {
-  switch (type) {
-    case "FREE":
-      return {
-        label: "Gratuit",
-        className: "bg-success-100 text-success-700",
-      };
-    case "FREEMIUM":
-      return {
-        label: "Freemium",
-        className: "bg-primary-100 text-primary-700",
-      };
-    case "PAID":
-      return {
-        label: "Payant",
-        className: "bg-accent-100 text-accent-700",
-      };
-    case "CONTACT":
-      return {
-        label: "Sur devis",
-        className: "bg-neutral-100 text-neutral-700",
-      };
-    default:
-      return {
-        label: type,
-        className: "bg-neutral-100 text-neutral-700",
-      };
-  }
+  const pricingMap: Record<string, { label: string; className: string }> = {
+    free: { 
+      label: 'Gratuit', 
+      className: 'bg-success-100 text-success-700'
+    },
+    freemium: { 
+      label: 'Freemium', 
+      className: 'bg-primary-100 text-primary-700'
+    },
+    paid: { 
+      label: 'Payant', 
+      className: 'bg-accent-100 text-accent-700'
+    },
+    subscription: { 
+      label: 'Abonnement', 
+      className: 'bg-neutral-100 text-neutral-700'
+    },
+    trial: { 
+      label: 'Essai gratuit', 
+      className: 'bg-primary-100 text-primary-700'
+    }
+  };
+  
+  return pricingMap[type] || { 
+    label: type || 'Inconnu', 
+    className: 'bg-neutral-100 text-neutral-700'
+  };
 }
 
 /**
@@ -152,29 +162,48 @@ export function getCategoryColor(categorySlug: string): string {
 /**
  * Génère une icône pour une catégorie basée sur son slug
  */
-export function getCategoryEmoji(categorySlug: string): string {
+export function getCategoryEmoji(slug?: string): string {
+  if (!slug) return '🎯';
+  
   const emojiMap: Record<string, string> = {
-    "generation-videos": "🎬",
-    "edition-videos": "✂️",
-    "animation": "🎭",
-    "audio": "🎵",
-    "voix": "🗣️",
-    "transcription": "📝",
-    "sous-titres": "💬",
-    "effets-speciaux": "✨",
-    "montage": "🎞️",
-    "image-generation": "🖼️",
-    "3d": "🧊",
-    "realite-augmentee": "👓",
-    "realite-virtuelle": "🥽",
-    "avatars": "👤",
-    "traduction": "🌐",
-    "musique": "🎼",
-    "analytics": "📊",
-    "marketing": "📣",
-    "diffusion": "📡",
-    "monetisation": "💰"
+    'video-editing': '🎬',
+    'ai-generation': '🤖',
+    'subtitles': '💬',
+    'transcription': '📝',
+    'animation': '🎭',
+    'voiceover': '🎙️',
+    'audio': '🔊',
+    'translation': '🌐',
+    'screen-recording': '📹',
+    'storytelling': '📚',
+    'effects': '✨',
+    'color-grading': '🎨',
+    'music': '🎵',
+    'analytics': '📊',
+    'marketing': '📢',
+    'social-media': '📱',
+    'streaming': '📡',
+    'motion-graphics': '⚡',
+    'augmented-reality': '👓',
+    'virtual-reality': '🥽',
+    'scriptwriting': '📜',
+    '3d': '🧊',
+    'image-enhancement': '🖼️',
+    'video-enhancement': '📺',
+    'background-removal': '✂️',
+    'video-compression': '📦',
+    'character-animation': '🦸',
+    'text-to-video': '📄',
+    'video-to-text': '🔍',
+    'noise-reduction': '🔇',
+    'video-stabilization': '🧿',
+    'face-animation': '😀',
+    'content-moderation': '🛡️',
   };
-
-  return emojiMap[categorySlug] || "🔍";
+  
+  // Normaliser le slug
+  const normalizedSlug = slug.toLowerCase().trim();
+  
+  // Retourner l'emoji correspondant ou un emoji par défaut
+  return emojiMap[normalizedSlug] || '🎥';
 } 

@@ -522,188 +522,123 @@ async function generateSeoDescription(toolId: string, websiteUrl: string, descri
 
 // Fonction principale pour exécuter la séquence complète
 export async function sequenceTool(toolId: string, websiteUrl: string): Promise<ToolSequenceResult> {
+  console.log(`Démarrage du séquençage pour l'outil ${toolId} (URL: ${websiteUrl})`);
+  
+  // Récupérer les informations de l'outil pour avoir son nom
+  let toolName = "Outil inconnu";
+  try {
+    const toolResponse = await fetch(`/api/tools/${toolId}`);
+    if (toolResponse.ok) {
+      const toolData = await toolResponse.json();
+      toolName = toolData.name || toolName;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des informations de l\'outil:', error);
+  }
+  
+  const startTime = new Date();
   const result: ToolSequenceResult = {
     toolId,
     processResults: {},
-    startTime: new Date(),
+    startTime,
     success: false
   };
   
-  try {
-    console.log(`[${new Date().toLocaleTimeString()}] Début de la séquence pour l'outil ${toolId}`);
-    
-    // Récupérer le nom de l'outil pour l'historique
-    let toolName = "";
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    while (retryCount < maxRetries && !toolName) {
-      try {
-        console.log(`[${new Date().toLocaleTimeString()}] Tentative de récupération du nom de l'outil ${toolId} (essai ${retryCount + 1}/${maxRetries})`);
-        const toolResponse = await fetch(`/api/tools/${toolId}`);
-        
-        if (toolResponse.ok) {
-          const toolData = await toolResponse.json();
-          if (toolData && toolData.name) {
-            toolName = toolData.name;
-            console.log(`[${new Date().toLocaleTimeString()}] Nom de l'outil récupéré avec succès: "${toolName}"`);
-          } else {
-            console.error(`[${new Date().toLocaleTimeString()}] La réponse de l'API est OK mais ne contient pas de nom pour l'outil ${toolId}:`, toolData);
-            retryCount++;
-            if (retryCount < maxRetries) await new Promise(resolve => setTimeout(resolve, 1000)); // Attendre 1 seconde avant de réessayer
-          }
-        } else {
-          const errorText = await toolResponse.text();
-          console.error(`[${new Date().toLocaleTimeString()}] Échec de la récupération de l'outil ${toolId} (${toolResponse.status}):`, errorText);
-          retryCount++;
-          if (retryCount < maxRetries) await new Promise(resolve => setTimeout(resolve, 1000)); // Attendre 1 seconde avant de réessayer
-        }
-      } catch (error) {
-        console.error(`[${new Date().toLocaleTimeString()}] Erreur lors de la récupération du nom de l'outil ${toolId}:`, error);
-        retryCount++;
-        if (retryCount < maxRetries) await new Promise(resolve => setTimeout(resolve, 1000)); // Attendre 1 seconde avant de réessayer
-      }
-    }
-
-    // Si après toutes les tentatives, on n'a toujours pas de nom, utiliser un nom par défaut
-    if (!toolName) {
-      toolName = "Outil " + toolId.substring(0, 8);
-      console.warn(`[${new Date().toLocaleTimeString()}] Impossible de récupérer le nom de l'outil après ${maxRetries} tentatives. Utilisation d'un nom par défaut: ${toolName}`);
-    }
-    
-    // Processus 1: Validation d'URL
-    console.log(`[${new Date().toLocaleTimeString()}] Démarrage du processus 1: Validation d'URL pour ${toolId}`);
-    result.processResults[1] = await validateUrl(toolId, websiteUrl);
-    console.log(`[${new Date().toLocaleTimeString()}] Fin du processus 1: Validation d'URL - Statut: ${result.processResults[1].status}`);
-    
-    if (result.processResults[1].status === 'error') {
-      // Si la validation d'URL échoue, marquer les autres processus comme annulés
-      console.log(`[${new Date().toLocaleTimeString()}] La validation d'URL a échoué. Annulation des processus suivants.`);
-      
-      // Marquer les processus 2 à 5 comme annulés
-      for (let i = 2; i <= 5; i++) {
-        result.processResults[i] = {
-          status: 'error',
-          message: 'Processus annulé - La validation d\'URL a échoué'
-        };
-      }
-      
-      result.endTime = new Date();
-      result.success = false;
-      
-      // Enregistrer l'historique
-      await saveSequenceHistory(toolId, toolName, result);
-      
-      return result; // Arrêter si l'URL n'est pas valide
-    }
-    
-    // Processus 2: Capture d'écran et liens sociaux
-    console.log(`[${new Date().toLocaleTimeString()}] Démarrage du processus 2: Capture & Social pour ${toolId}`);
-    result.processResults[2] = await crawlImageAndSocialLinks(toolId, websiteUrl);
-    console.log(`[${new Date().toLocaleTimeString()}] Fin du processus 2: Capture & Social - Statut: ${result.processResults[2].status}`);
-    
-    // Extraire les liens sociaux pour les passer au processus suivant
-    const socialLinks = result.processResults[2].data?.socialLinksFound || [];
-    
-    // Processus 3: Extraction de contenu
-    console.log(`[${new Date().toLocaleTimeString()}] Démarrage du processus 3: Extraction de contenu pour ${toolId}`);
-    result.processResults[3] = await extractContent(toolId, websiteUrl, socialLinks);
-    console.log(`[${new Date().toLocaleTimeString()}] Fin du processus 3: Extraction de contenu - Statut: ${result.processResults[3].status}`);
-    
-    // Processus 4: Extraction des tarifs
-    console.log(`[${new Date().toLocaleTimeString()}] Démarrage du processus 4: Extraction des tarifs pour ${toolId}`);
-    result.processResults[4] = await extractPricing(toolId, websiteUrl);
-    console.log(`[${new Date().toLocaleTimeString()}] Fin du processus 4: Extraction des tarifs - Statut: ${result.processResults[4].status}`);
-    
-    // Processus 5: Génération de description détaillée SEO
-    console.log(`[${new Date().toLocaleTimeString()}] Démarrage du processus 5: Génération de description détaillée pour ${toolId}`);
-    const description = result.processResults[3].data?.description || '';
-    result.processResults[5] = await generateSeoDescription(toolId, websiteUrl, description);
-    console.log(`[${new Date().toLocaleTimeString()}] Fin du processus 5: Génération de description détaillée - Statut: ${result.processResults[5].status}`);
-    
-    // Déterminer si la séquence est un succès (au moins 3 processus réussis)
-    const successCount = Object.values(result.processResults).filter(
-      r => r.status === 'success'
-    ).length;
-    
-    result.success = successCount >= 3;
-    result.endTime = new Date();
-    
-    // Enregistrer l'historique
-    await saveSequenceHistory(toolId, toolName, result);
-    
-    console.log(`[${new Date().toLocaleTimeString()}] Fin de la séquence pour l'outil ${toolId} - Succès: ${result.success}`);
-    
-    return result;
-  } catch (error) {
-    console.error('Erreur dans sequenceTool:', error);
+  let isSuccess = true;
+  let contentDescription = '';
+  
+  // Processus 1: Validation de l'URL
+  result.processResults[1] = await validateUrl(toolId, websiteUrl);
+  console.log(`Processus 1 (Validation URL) terminé avec statut: ${result.processResults[1].status}`);
+  
+  // Si l'URL n'est pas valide, on ne continue pas
+  if (result.processResults[1].status === 'error') {
+    console.log(`URL invalide, arrêt du séquençage pour l'outil ${toolId}`);
     result.endTime = new Date();
     result.success = false;
     
-    // Enregistrer l'historique même en cas d'erreur
-    try {
-      await saveSequenceHistory(toolId, "Outil inconnu", result);
-    } catch (historyError) {
-      console.error('Erreur lors de l\'enregistrement de l\'historique:', historyError);
-    }
+    // Sauvegarder l'historique avant de terminer
+    await saveSequenceHistory(toolId, toolName, result);
     
     return result;
   }
+  
+  // Processus 2: Extraction d'image et des liens sociaux
+  result.processResults[2] = await crawlImageAndSocialLinks(toolId, websiteUrl);
+  console.log(`Processus 2 (Image & Social) terminé avec statut: ${result.processResults[2].status}`);
+  
+  // Construire la liste des liens sociaux si disponible
+  let socialLinks: string[] = [];
+  if (result.processResults[2].data && result.processResults[2].data.socialLinks) {
+    socialLinks = Object.values(result.processResults[2].data.socialLinks).filter(Boolean) as string[];
+  }
+  
+  // Processus 3: Extraction du contenu
+  result.processResults[3] = await extractContent(toolId, websiteUrl, socialLinks);
+  console.log(`Processus 3 (Extraction contenu) terminé avec statut: ${result.processResults[3].status}`);
+  
+  // Récupérer la description si disponible pour les processus suivants
+  if (result.processResults[3].data && result.processResults[3].data.description) {
+    contentDescription = result.processResults[3].data.description;
+  }
+  
+  // Processus 4: Extraction des informations de tarification
+  result.processResults[4] = await extractPricing(toolId, websiteUrl);
+  console.log(`Processus 4 (Tarification) terminé avec statut: ${result.processResults[4].status}`);
+  
+  // Processus 5: Génération de la description SEO
+  result.processResults[5] = await generateSeoDescription(toolId, websiteUrl, contentDescription);
+  console.log(`Processus 5 (SEO) terminé avec statut: ${result.processResults[5].status}`);
+  
+  // Vérifier si au moins un processus a échoué
+  for (const processId in result.processResults) {
+    if (result.processResults[processId].status === 'error') {
+      isSuccess = false;
+      break;
+    }
+  }
+  
+  result.endTime = new Date();
+  result.success = isSuccess;
+  
+  // Sauvegarder l'historique à la fin du séquençage
+  await saveSequenceHistory(toolId, toolName, result);
+  
+  return result;
 }
 
 // Fonction pour enregistrer l'historique du séquençage
 async function saveSequenceHistory(toolId: string, toolName: string, result: ToolSequenceResult): Promise<void> {
   try {
-    // Si le nom de l'outil est vide ou "Outil sans nom", essayer de le récupérer à nouveau
-    if (!toolName || toolName === "Outil sans nom" || toolName === "Outil inconnu") {
-      try {
-        console.log(`[${new Date().toLocaleTimeString()}] Tentative de récupération du nom de l'outil ${toolId} avant enregistrement de l'historique`);
-        const toolResponse = await fetch(`/api/tools/${toolId}`);
-        if (toolResponse.ok) {
-          const toolData = await toolResponse.json();
-          if (toolData && toolData.name) {
-            toolName = toolData.name;
-            console.log(`[${new Date().toLocaleTimeString()}] Nom de l'outil récupéré avec succès pour l'historique: "${toolName}"`);
-          }
-        }
-      } catch (error) {
-        console.error(`[${new Date().toLocaleTimeString()}] Erreur lors de la récupération du nom de l'outil pour l'historique:`, error);
-      }
-    }
+    console.log(`Sauvegarde de l'historique de séquençage pour l'outil ${toolId} (${toolName})`);
     
-    console.log(`[${new Date().toLocaleTimeString()}] Enregistrement de l'historique pour ${toolId} (${toolName})`);
+    // Préparer les données pour l'API
+    const historyData = {
+      toolId,
+      toolName,
+      startTime: result.startTime.toISOString(),
+      endTime: result.endTime ? result.endTime.toISOString() : new Date().toISOString(),
+      success: result.success,
+      processResults: JSON.stringify(result.processResults)
+    };
     
-    // Simplifier les résultats pour le stockage
-    const simplifiedProcessResults = Object.entries(result.processResults).reduce((acc, [processId, processResult]) => {
-      acc[processId] = {
-        status: processResult.status,
-        message: processResult.message
-      };
-      return acc;
-    }, {} as Record<string, { status: string; message: string }>);
-    
+    // Appeler l'API pour sauvegarder l'historique
     const response = await fetch('/api/admin/sequence-history', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        toolId,
-        toolName,
-        startTime: result.startTime,
-        endTime: result.endTime,
-        success: result.success,
-        processResults: JSON.stringify(simplifiedProcessResults)
-      }),
+      body: JSON.stringify(historyData),
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Erreur ${response.status}: ${errorText}`);
     }
-    
-    console.log(`[${new Date().toLocaleTimeString()}] Historique enregistré avec succès pour ${toolId}`);
+
+    console.log(`Historique de séquençage sauvegardé avec succès pour l'outil ${toolId}`);
   } catch (error) {
-    console.error(`Erreur lors de l'enregistrement de l'historique pour ${toolId}:`, error);
-    // Ne pas propager l'erreur pour ne pas bloquer le reste du processus
+    console.error('Erreur lors de la sauvegarde de l\'historique de séquençage:', error);
+    // On ne fait pas échouer le séquençage si l'historique ne peut pas être sauvegardé
   }
 } 

@@ -22,7 +22,6 @@ model Tool {
   name                String
   slug                String              @unique
   description         String
-  detailedDescription String?
   logoUrl             String?
   websiteUrl          String
   features            String
@@ -45,6 +44,7 @@ model Tool {
   httpChain           String?
   affiliateUrl        String?
   hasAffiliateProgram Boolean             @default(false)
+  detailedDescription String?
   CategoriesOnTools   CategoriesOnTools[]
   FeaturesOnTools     FeaturesOnTools[]
   Review              Review[]
@@ -226,15 +226,15 @@ model ToolsOnSearches {
 }
 
 model SequenceHistory {
-  id            String   @id @default(cuid())
-  toolId        String   
-  toolName      String
-  startTime     DateTime
-  endTime       DateTime?
-  success       Boolean
-  processResults String   // JSON string containing process results
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String    @id @default(cuid())
+  toolId         String
+  toolName       String
+  startTime      DateTime
+  endTime        DateTime?
+  success        Boolean
+  processResults String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([toolId])
 }

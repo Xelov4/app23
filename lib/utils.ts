@@ -112,3 +112,19 @@ export function slugify(text: string): string {
     .replace(/[^\w-]+/g, '') // Enlever les caractères non alphanumériques
     .replace(/--+/g, '-'); // Remplacer les tirets multiples par un seul
 }
+
+// Fonction pour parser de manière sécurisée les features
+export function safeJsonParse(jsonString: string | null | undefined): any[] {
+  if (!jsonString) return [];
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Erreur lors du parsing JSON:", error);
+    // Si c'est une chaîne, essayer de la diviser par des virgules
+    if (typeof jsonString === 'string') {
+      return jsonString.split(',').map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  }
+}

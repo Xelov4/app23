@@ -1,23 +1,14 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  getImageWithFallback,
-  formatDate,
-  truncateText,
-  formatPricingType,
-  getCategoryEmoji
-} from "@/lib/design-system/primitives";
+import { ChevronLeft } from "lucide-react";
 import { db } from "@/lib/db";
-import { ChevronLeft, Globe, ExternalLink, Tag, Clock, Calendar, Star, Info, CheckCircle, MessageSquare, ArrowRight } from "lucide-react";
+import { safeJsonParse } from "@/lib/utils";
 
-// Import direct du composant client
-import ClientTabsComponent from "@/components/tool/ClientTabs";
+// Import des nouveaux composants
+import ToolHeader from "@/components/tool/ToolHeader";
+import ToolContent from "@/components/tool/ToolContent";
+import ToolSidebar from "@/components/tool/ToolSidebar";
 
 // Options de page Next.js
 export const revalidate = 3600;
@@ -29,6 +20,22 @@ type ToolPageProps = {
     slug: string;
   };
 };
+
+// Ajoutez cette fonction améliorée pour parser de manière sécurisée JSON
+function safeFeaturesParse(jsonString: string | null | undefined): any[] {
+  if (!jsonString) return [];
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Erreur lors du parsing JSON:", error);
+    // Si c'est une chaîne, essayer de la diviser par des virgules
+    if (typeof jsonString === 'string') {
+      return jsonString.split(',').map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+  }
+}
 
 // Fonction pour récupérer un outil par son slug
 async function getToolBySlug(slug: string) {
@@ -52,14 +59,34 @@ async function getToolBySlug(slug: string) {
         orderBy: {
           createdAt: "desc",
         },
-        take: 3,
+        take: 10, // Augmenté pour afficher plus d'avis
       },
       _count: {
         select: {
           Review: true,
         },
       },
-      UseCasesOnTools: true,
+      UseCasesOnTools: {
+        include: {
+          UseCase: true,
+        },
+      },
+      UserTypesOnTools: {
+        include: {
+          UserType: true,
+        },
+      },
+      FeaturesOnTools: {
+        include: {
+          Feature: true,
+        },
+      },
+      ToolsOnSearches: {
+        include: {
+          Search: true,
+        },
+        take: 10,
+      },
     },
   });
 
@@ -74,13 +101,15 @@ async function getToolBySlug(slug: string) {
         tool.Review.length
       : 0;
 
-  // Formater les features
-  const features = tool.features ? JSON.parse(tool.features) : [];
+  // Utilisation de la fonction sécurisée pour parser les features
+  const features = safeFeaturesParse(tool.features);
 
-  // Formater les cas d'utilisation
-  const useCases = tool.UseCasesOnTools && tool.UseCasesOnTools.length > 0 
-    ? tool.UseCasesOnTools.map(uc => uc.useCaseId || "").filter(Boolean)
-    : [];
+  // Formatter les cas d'utilisation
+  const useCases = tool.UseCasesOnTools.map(uc => ({
+    id: uc.useCaseId,
+    name: uc.UseCase.name,
+    description: uc.UseCase.description
+  }));
   
   // Formatter les catégories
   const categories = tool.CategoriesOnTools.map(cat => ({
@@ -94,6 +123,21 @@ async function getToolBySlug(slug: string) {
     tag: tag.Tag
   }));
 
+  // Formatter les types d'utilisateurs
+  const userTypes = tool.UserTypesOnTools.map(ut => ({
+    id: ut.userTypeId,
+    name: ut.UserType.name,
+    description: ut.UserType.description
+  }));
+
+  // Formatter les recherches associées
+  const relatedSearches = tool.ToolsOnSearches.map(ts => ({
+    id: ts.searchId,
+    keyword: ts.Search.keyword,
+    slug: ts.Search.slug,
+    relevance: ts.relevance
+  }));
+
   return {
     ...tool,
     rating,
@@ -101,6 +145,8 @@ async function getToolBySlug(slug: string) {
     useCases,
     categories,
     tags,
+    userTypes,
+    relatedSearches,
     reviews: tool.Review,
     _count: {
       reviews: tool._count.Review
@@ -109,8 +155,8 @@ async function getToolBySlug(slug: string) {
 }
 
 // Fonction pour récupérer des outils similaires
-async function getSimilarTools(categoryIds: string[], currentToolId: string) {
-  if (!categoryIds.length) return [];
+async function getSimilarTools(categoryIds: string[], tagIds: string[], currentToolId: string) {
+  if (!categoryIds.length && !tagIds.length) return [];
 
   const similarTools = await db.tool.findMany({
     where: {
@@ -118,6 +164,8 @@ async function getSimilarTools(categoryIds: string[], currentToolId: string) {
         not: currentToolId,
       },
       isActive: true,
+      OR: [
+        {
       CategoriesOnTools: {
         some: {
           categoryId: {
@@ -125,6 +173,17 @@ async function getSimilarTools(categoryIds: string[], currentToolId: string) {
           },
         },
       },
+        },
+        {
+          TagsOnTools: {
+            some: {
+              tagId: {
+                in: tagIds,
+              },
+            },
+          },
+        },
+      ],
     },
     include: {
       CategoriesOnTools: {
@@ -133,36 +192,56 @@ async function getSimilarTools(categoryIds: string[], currentToolId: string) {
         },
       },
     },
-    take: 3,
+    take: 5,
   });
 
   return similarTools.map((tool) => ({
     ...tool,
-    rating: 0, // Valeur par défaut
-    features: tool.features ? JSON.parse(tool.features) : [],
+    features: safeFeaturesParse(tool.features),
     categories: tool.CategoriesOnTools.map((c) => c.Category),
   }));
+}
+
+// Fonction pour récupérer les catégories populaires
+async function getPopularCategories() {
+  const categories = await db.category.findMany({
+    take: 8,
+    orderBy: {
+      CategoriesOnTools: {
+        _count: "desc",
+      },
+    },
+  });
+
+  return categories;
 }
 
 // Metadata dynamique
 export async function generateMetadata({
   params,
 }: ToolPageProps): Promise<Metadata> {
-  const slug = await Promise.resolve(params.slug);
+  const slug = params.slug;
   const tool = await getToolBySlug(slug);
   
   if (!tool) {
     return {
       title: "Outil non trouvé | Vidéo-IA.net",
-      description: "Cet outil d'IA n'a pas été trouvé dans notre base de données.",
+      description: "L'outil que vous recherchez n'existe pas ou a été supprimé.",
     };
   }
 
+  // Créer une méta-description à partir de la description de l'outil
+  const metaDescription = tool.description
+    ? tool.description.substring(0, 160) + (tool.description.length > 160 ? "..." : "")
+    : "Découvrez cet outil d'IA pour la vidéo et améliorez votre processus de création.";
+
   return {
-    title: `${tool.name} | Vidéo-IA.net`,
-    description: truncateText(tool.description, 160),
+    title: `${tool.name} - Outil d'IA pour vidéo | Vidéo-IA.net`,
+    description: metaDescription,
     openGraph: {
-      images: [{ url: getImageWithFallback(tool.logoUrl) }],
+      title: `${tool.name} - Outil d'IA pour vidéo | Vidéo-IA.net`,
+      description: metaDescription,
+      type: "website",
     },
   };
 }
@@ -171,134 +250,50 @@ export async function generateMetadata({
 export default async function ToolPage({
   params,
 }: ToolPageProps) {
-  const slug = await Promise.resolve(params.slug);
+  const slug = params.slug;
   const tool = await getToolBySlug(slug);
 
   if (!tool) {
     notFound();
   }
 
-  // Récupérer les IDs des catégories
-  const categoryIds = tool.categories.map((c) => c.categoryId);
-  const similarTools = await getSimilarTools(categoryIds, tool.id);
+  // Récupérer les IDs des catégories et tags pour trouver des outils similaires
+  const categoryIds = tool.categories.map((cat) => cat.categoryId);
+  const tagIds = tool.tags.map((tag) => tag.tagId);
 
-  // Formater les liens sociaux s'ils existent
-  const socialLinks = [];
-  if (tool.twitterUrl) socialLinks.push({ name: "Twitter", url: tool.twitterUrl });
-  if (tool.linkedinUrl) socialLinks.push({ name: "LinkedIn", url: tool.linkedinUrl });
-  if (tool.instagramUrl) socialLinks.push({ name: "Instagram", url: tool.instagramUrl });
-  if (tool.githubUrl) socialLinks.push({ name: "GitHub", url: tool.githubUrl });
-  if (tool.facebookUrl) socialLinks.push({ name: "Facebook", url: tool.facebookUrl });
-
-  // Ajouter les liens sociaux à l'objet outil pour le composant client
-  const toolWithSocialLinks = {
-    ...tool,
-    socialLinks
-  };
+  // Récupérer les outils similaires et les catégories populaires
+  const [similarTools, popularCategories] = await Promise.all([
+    getSimilarTools(categoryIds, tagIds, tool.id),
+    getPopularCategories(),
+  ]);
 
   return (
-    <div className="container max-w-screen-xl mx-auto px-4 py-8">
+    <div className="min-h-screen pb-16">
       {/* Fil d'Ariane */}
-      <div className="mb-6">
+      <div className="container max-w-screen-xl mx-auto px-4 py-4">
         <Link href="/tools" className="flex items-center text-muted-foreground hover:text-foreground transition-colors text-sm">
           <ChevronLeft size={14} className="mr-1" />
           Retour à la liste des outils
         </Link>
       </div>
 
-      {/* En-tête de l'outil */}
-      <div className="flex flex-col md:flex-row gap-6 items-start mb-8">
-        {/* Logo - Version améliorée avec image plus grande et centrée */}
-        <div className="w-24 h-24 md:w-40 md:h-40 relative rounded-lg border overflow-hidden flex-shrink-0 bg-white shadow-sm mx-auto md:mx-0 group hover:shadow-md transition-all duration-300">
-          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <Image
-            src={getImageWithFallback(tool.logoUrl)}
-            alt={tool.name}
-            fill
-            className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 768px) 96px, 160px"
-            priority
-          />
-        </div>
-        
-        {/* Informations principales */}
-        <div className="flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <h1 className="text-2xl md:text-3xl font-bold">{tool.name}</h1>
-            <div className="flex items-center">
-              <div className="flex mr-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={16}
-                    className={`${
-                      star <= Math.round(tool.rating)
-                        ? "text-yellow-400 fill-yellow-400"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                ({tool._count.reviews || 0})
-              </span>
-            </div>
-          </div>
-
-          {/* Tags et catégories */}
-          <div className="flex flex-wrap gap-2 my-3">
-            <Badge className={formatPricingType(tool.pricingType).className}>
-              {formatPricingType(tool.pricingType).label}
-            </Badge>
-            
-            {tool.categories.map((item) => (
-              <Link
-                key={item.categoryId}
-                href={`/categories/${item.category.slug}`}
-              >
-                <Badge variant="outline" className="flex items-center hover:bg-muted">
-                  <span className="mr-1">{getCategoryEmoji(item.category.slug)}</span>
-                  {item.category.name}
-                </Badge>
-              </Link>
-            ))}
+      {/* En-tête */}
+      <ToolHeader tool={tool} />
+      
+      {/* Contenu principal */}
+      <div className="container max-w-screen-xl mx-auto px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Contenu principal (3/4) */}
+          <div className="lg:col-span-3">
+            <ToolContent tool={tool} relatedSearches={tool.relatedSearches} />
           </div>
           
-          {/* Description courte */}
-          <p className="text-muted-foreground">
-            {truncateText(tool.description, 200)}
-          </p>
-          
-          {/* Actions principales */}
-          <div className="flex flex-wrap gap-3 mt-4">
-            <Button asChild>
-              <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                <Globe size={16} className="mr-2" />
-                Visiter le site
-              </a>
-            </Button>
-            {tool.tags.length > 0 && (
-              <div className="flex items-center text-muted-foreground text-sm">
-                <Tag size={14} className="mr-1" />
-                {tool.tags.slice(0, 3).map((tag, i) => (
-                  <span key={tag.tagId}>
-                    {i > 0 && ", "}
-                    <Link href={`/tags/${tag.tag.slug}`} className="hover:underline">
-                      {tag.tag.name}
-                    </Link>
-                  </span>
-                ))}
-                {tool.tags.length > 3 && "..."}
-              </div>
-            )}
+          {/* Sidebar (1/4) */}
+          <div className="lg:col-span-1">
+            <ToolSidebar similarTools={similarTools} popularCategories={popularCategories} />
           </div>
         </div>
       </div>
-      
-      <Separator className="my-6" />
-      
-      {/* Contenu principal en onglets pour un format wiki */}
-      <ClientTabsComponent tool={toolWithSocialLinks} similarTools={similarTools} />
     </div>
   );
 } 
