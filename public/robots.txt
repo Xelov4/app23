@@ -1,6 +1,8 @@
 # Robot rules
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /admin
 
 # Sitemaps
 Sitemap: https://www.video-ia.net/api/sitemap-index.xml
