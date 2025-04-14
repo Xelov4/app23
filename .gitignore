@@ -44,4 +44,3 @@ next-env.d.ts
 /certs/*.pem
 logs/video-ia.access.log
 logs/video-ia.access.log
-*.db
