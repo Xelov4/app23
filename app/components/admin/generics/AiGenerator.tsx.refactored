@@ -1,0 +1,256 @@
+'use client';
+
+import { useState, ReactNode } from 'react';
+import { Sparkles, ArrowRight, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface AiGeneratorProps<T> {
+  title: string;
+  icon?: ReactNode;
+  entityName: string;
+  fields: Array<{ key: string; label: string }>;
+  buildPromptCallback: (config: any) => string;
+  onDataGenerated: (data: Partial<T>) => void;
+  additionalContext?: string;
+}
+
+export default function AiGenerator<T>({
+  title,
+  icon = <Sparkles className="h-5 w-5 mr-2 text-yellow-300" />,
+  entityName,
+  fields,
+  buildPromptCallback,
+  onDataGenerated,
+  additionalContext = ''
+}: AiGeneratorProps<T>) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [additionalPrompt, setAdditionalPrompt] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-pro');
+  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
+  const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>(() => {
+    // Par défaut, tous les champs sont sélectionnés
+    return fields.reduce((acc, field) => {
+      acc[field.key] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+  });
+
+  const toggleField = (key: string) => {
+    setSelectedFields(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const generateContent = async () => {
+    if (!entityName) {
+      setError('Veuillez d\'abord entrer un nom pour cette entité');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const prompt = buildPromptCallback({
+        entityName,
+        selectedFields,
+        customPrompt,
+        additionalPrompt,
+        additionalContext
+      });
+      
+      const response = await fetch('/api/admin/gemini-ia', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          apiKey: process.env.GEMINI_API_KEY || 'AIzaSyB5Jku7K8FwTM0LcC3Iihfo4btAJ6IgCcA',
+          model: selectedModel
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur lors de la génération de contenu');
+      }
+
+      const data = await response.json();
+      
+      // Filtrer pour ne garder que les champs sélectionnés
+      const filteredData: Record<string, any> = {};
+      
+      Object.keys(selectedFields).forEach(key => {
+        if (selectedFields[key] && data[key] !== undefined) {
+          filteredData[key] = data[key];
+        }
+      });
+      
+      // Mettre à jour les champs
+      onDataGenerated(filteredData as Partial<T>);
+      
+    } catch (err: any) {
+      setError(err.message || 'Une erreur est survenue lors de la génération de contenu');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 border border-gray-200 rounded-lg p-4 bg-gray-50">
+      <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center">
+          {icon}
+          <h3 className="text-lg font-medium text-gray-800">
+            {title}
+          </h3>
+        </div>
+        <button 
+          type="button"
+          className="text-gray-500 hover:text-gray-700"
+        >
+          {isExpanded ? (
+            <ArrowRight className="w-5 h-5 transform rotate-90" />
+          ) : (
+            <ArrowRight className="w-5 h-5 transform -rotate-90" />
+          )}
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-start gap-2">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">
+                L'IA va générer du contenu pour <strong>{entityName}</strong>.
+              </p>
+              <p className="text-xs text-gray-500">
+                Sélectionnez les éléments à générer ci-dessous.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Modèle IA
+            </label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sélectionner un modèle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini-2.5-pro-preview-03-25">Gemini 2.5 Pro Preview</SelectItem>
+                <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+                <SelectItem value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</SelectItem>
+                <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                <SelectItem value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Éléments à générer
+            </label>
+            <div className="space-y-2">
+              {fields.map((field) => (
+                <div key={field.key} className="flex items-center">
+                  <Checkbox
+                    id={`field-${field.key}`}
+                    checked={selectedFields[field.key]}
+                    onCheckedChange={() => toggleField(field.key)}
+                  />
+                  <label
+                    htmlFor={`field-${field.key}`}
+                    className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {field.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <Checkbox
+              id="show-custom-prompt"
+              checked={showCustomPrompt}
+              onCheckedChange={() => setShowCustomPrompt(!showCustomPrompt)}
+            />
+            <label htmlFor="show-custom-prompt" className="ml-2 text-sm font-medium leading-none">
+              Personnaliser le prompt
+            </label>
+          </div>
+
+          {showCustomPrompt ? (
+            <div>
+              <label htmlFor="custom-prompt" className="block text-sm font-medium text-gray-700 mb-1">
+                Prompt personnalisé
+              </label>
+              <Textarea
+                id="custom-prompt"
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder={`Écrivez un prompt personnalisé pour générer du contenu pour ${entityName}...`}
+                rows={6}
+                className="w-full resize-y"
+              />
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="additional-prompt" className="block text-sm font-medium text-gray-700 mb-1">
+                Instructions supplémentaires (facultatif)
+              </label>
+              <Textarea
+                id="additional-prompt"
+                value={additionalPrompt}
+                onChange={(e) => setAdditionalPrompt(e.target.value)}
+                placeholder="Ajouter des instructions spécifiques pour l'IA..."
+                rows={3}
+                className="w-full resize-y"
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={generateContent}
+              disabled={isGenerating}
+              className="flex items-center"
+              variant="default"
+            >
+              {isGenerating ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></span>
+                  Génération en cours...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Générer avec l'IA
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} 

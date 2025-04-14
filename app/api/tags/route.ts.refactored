@@ -1,0 +1,37 @@
+import { createCRUDHandler } from '@/lib/api/api-factory';
+
+// Fonction de formatage des tags
+function formatTag(tag: any) {
+  return {
+    id: tag.id,
+    name: tag.name,
+    slug: tag.slug,
+    seoTitle: tag.seoTitle,
+    metaDescription: tag.metaDescription,
+    toolCount: tag._count?.TagsOnTools || 0,
+    createdAt: tag.createdAt,
+    updatedAt: tag.updatedAt
+  };
+}
+
+// Configuration pour les tags
+const tagsConfig = {
+  model: 'tag',
+  includes: {
+    _count: {
+      select: {
+        TagsOnTools: true,
+      },
+    },
+  },
+  orderBy: { name: 'asc' as const },
+  formatResponse: formatTag,
+  uniqueFields: ['slug']
+};
+
+// Créer les handlers CRUD pour les tags
+const tagsHandler = createCRUDHandler(tagsConfig);
+
+// Exporter les handlers
+export const GET = tagsHandler.GET;
+export const POST = tagsHandler.POST; 

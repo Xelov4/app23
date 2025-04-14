@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from "@/lib/db";
+import { PrismaClient } from "@prisma/client";
 import { z } from 'zod';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { slugify } from '@/lib/utils';
+
+const prisma = new PrismaClient();
 
 // Schéma de validation pour la mise à jour des tags
 const updateTagSchema = z.object({
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
     const { slug } = params;
 
     // Récupérer le tag avec le slug spécifié
-    const tag = await db.tag.findUnique({
+    const tag = await prisma.tag.findUnique({
       where: { slug },
       include: {
         _count: {
@@ -84,7 +86,7 @@ export async function PUT(request: NextRequest, { params }: { params: { slug: st
     }
     
     // Vérifier si le tag existe
-    const existingTag = await db.tag.findUnique({
+    const existingTag = await prisma.tag.findUnique({
       where: { slug }
     });
 
@@ -102,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: { params: { slug: st
       
       // Vérifier si le nouveau slug existe déjà (mais pas pour ce tag)
       if (newSlug !== slug) {
-        const tagWithSameSlug = await db.tag.findUnique({
+        const tagWithSameSlug = await prisma.tag.findUnique({
           where: { slug: newSlug }
         });
         
@@ -116,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: { slug: st
     }
 
     // Mettre à jour le tag
-    const updatedTag = await db.tag.update({
+    const updatedTag = await prisma.tag.update({
       where: { slug },
       data: {
         name: data.name,
@@ -160,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { slug:
     }
     
     // Vérifier si le tag existe
-    const existingTag = await db.tag.findUnique({
+    const existingTag = await prisma.tag.findUnique({
       where: { slug },
       include: {
         TagsOnTools: true
@@ -183,7 +185,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { slug:
     }
 
     // Supprimer le tag
-    await db.tag.delete({
+    await prisma.tag.delete({
       where: { slug }
     });
 

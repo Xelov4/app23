@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSiteBaseUrl, generateSitemapHeader, formatSitemapDate, generateSitemapEntry } from '@/lib/sitemap-utils';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // Récupérer l'hôte depuis l'URL de la requête pour déterminer l'environnement
-    const url = new URL(request.url);
-    const host = url.host;
-    
     // Générer le contenu XML du sitemap
-    const baseUrl = getSiteBaseUrl(host);
+    const baseUrl = getSiteBaseUrl();
     const now = formatSitemapDate(new Date());
 
     let xml = generateSitemapHeader();

@@ -1,0 +1,218 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Edit, 
+  Trash2, 
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Settings
+} from 'lucide-react';
+import { format } from 'date-fns';
+import AdminTable from '@/components/admin/generics/AdminTable';
+import { formatPricingType } from '@/lib/utils/formatters';
+import { Tool } from '@/types/app';
+
+export default function ToolsPage() {
+  const router = useRouter();
+
+  // Fonction pour récupérer les outils
+  const fetchTools = async (): Promise<Tool[]> => {
+    const response = await fetch('/api/tools');
+    if (!response.ok) {
+      throw new Error(`Erreur: ${response.status}`);
+    }
+    return await response.json();
+  };
+
+  // Définition des colonnes du tableau
+  const columns = [
+    {
+      header: 'Nom',
+      accessorKey: 'name',
+      enableSorting: true,
+      renderCell: (tool: Tool) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+            {tool.logoUrl ? (
+              <img 
+                src={tool.logoUrl} 
+                alt={tool.name} 
+                className="h-8 w-8 rounded-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = '/placeholder-image.png';
+                }}
+              />
+            ) : (
+              <Settings className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900">{tool.name}</div>
+            <div className="text-sm text-gray-500">{tool.slug}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'URL',
+      accessorKey: 'websiteUrl',
+      renderCell: (tool: Tool) => (
+        <a 
+          href={tool.websiteUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline flex items-center"
+        >
+          {tool.websiteUrl}
+          <ExternalLink className="ml-1 h-3 w-3" />
+        </a>
+      )
+    },
+    {
+      header: 'Tarification',
+      accessorKey: 'pricingType',
+      renderCell: (tool: Tool) => {
+        const pricing = formatPricingType(tool.pricingType);
+        return (
+          <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${pricing.className}`}>
+            {pricing.label}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Évaluation',
+      accessorKey: 'rating',
+      enableSorting: true,
+      renderCell: (tool: Tool) => (
+        <div className="text-sm">
+          {tool.rating ? `${tool.rating.toFixed(1)} (${tool.reviewCount || 0})` : 'Aucune'}
+        </div>
+      )
+    },
+    {
+      header: 'Statut',
+      accessorKey: 'isActive',
+      renderCell: (tool: Tool) => (
+        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          tool.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {tool.isActive ? 'Actif' : 'Inactif'}
+        </span>
+      )
+    },
+    {
+      header: 'Mise à jour',
+      accessorKey: 'updatedAt',
+      enableSorting: true,
+      renderCell: (tool: Tool) => (
+        <div className="text-sm text-gray-500">
+          {format(new Date(tool.updatedAt), 'dd/MM/yyyy')}
+        </div>
+      )
+    }
+  ];
+
+  // Définition des actions
+  const actions = [
+    {
+      label: 'Éditer',
+      icon: <Edit className="w-4 h-4 mr-1" />,
+      onClick: (tool: Tool) => router.push(`/admin/tools/${tool.id}/edit`),
+      variant: 'outline' as const
+    },
+    {
+      label: 'Voir',
+      icon: <Eye className="w-4 h-4 mr-1" />,
+      onClick: (tool: Tool) => window.open(`/tools/${tool.slug}`, '_blank'),
+      variant: 'outline' as const
+    },
+    {
+      label: 'Désactiver',
+      icon: <EyeOff className="w-4 h-4 mr-1" />,
+      onClick: async (tool: Tool) => {
+        if (confirm(`Voulez-vous ${tool.isActive ? 'désactiver' : 'activer'} cet outil ?`)) {
+          await fetch(`/api/tools/${tool.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: !tool.isActive })
+          });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (tool: Tool) => tool.isActive
+    },
+    {
+      label: 'Activer',
+      icon: <Eye className="w-4 h-4 mr-1" />,
+      onClick: async (tool: Tool) => {
+        if (confirm(`Voulez-vous ${tool.isActive ? 'désactiver' : 'activer'} cet outil ?`)) {
+          await fetch(`/api/tools/${tool.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: !tool.isActive })
+          });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (tool: Tool) => !tool.isActive
+    },
+    {
+      label: 'Supprimer',
+      icon: <Trash2 className="w-4 h-4 mr-1" />,
+      onClick: async (tool: Tool) => {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet outil ?')) {
+          await fetch(`/api/tools/${tool.id}`, { method: 'DELETE' });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (tool: Tool) => !tool.isActive // Seulement si inactif
+    }
+  ];
+
+  // Statistiques
+  const createStatCards = (tools: Tool[]) => [
+    {
+      title: "Nombre d'outils",
+      value: tools.length,
+      color: 'blue'
+    },
+    {
+      title: "Outils actifs",
+      value: tools.filter(t => t.isActive).length,
+      color: 'green'
+    },
+    {
+      title: "Outils sans logo",
+      value: tools.filter(t => !t.logoUrl).length,
+      color: 'amber'
+    }
+  ];
+
+  return (
+    <AdminTable<Tool>
+      title="Tous les outils"
+      icon={<Settings className="mr-2 h-6 w-6 text-primary" />}
+      description="Gérez les outils d'IA vidéo de la plateforme"
+      fetchItems={fetchTools}
+      columns={columns}
+      actions={actions}
+      searchFields={['name', 'slug', 'description', 'websiteUrl']}
+      statCards={[]}
+      createLink="/admin/tools/new"
+      createLabel="Nouvel outil"
+      itemsPerPage={15}
+    />
+  );
+} 

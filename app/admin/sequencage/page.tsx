@@ -85,6 +85,13 @@ interface ToolFilters {
   }
 }
 
+// Ajout du type pour la configuration du traitement parallèle
+interface ParallelConfig {
+  enabled: boolean;
+  maxConcurrent: number;
+  delayBetweenBatches: number; // en millisecondes
+}
+
 export default function SequencagePage() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [filteredTools, setFilteredTools] = useState<Tool[]>([]);
@@ -101,6 +108,21 @@ export default function SequencagePage() {
   const [history, setHistory] = useState<SequenceHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  
+  // État pour le système de pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [totalPages, setTotalPages] = useState(1);
+  const [paginatedTools, setPaginatedTools] = useState<Tool[]>([]);
+  
+  // Configuration du traitement parallèle
+  const [parallelConfig, setParallelConfig] = useState<ParallelConfig>({
+    enabled: false,
+    maxConcurrent: 5,
+    delayBetweenBatches: 1000
+  });
+  const [showParallelConfig, setShowParallelConfig] = useState(false);
+  const [activeToolProcesses, setActiveToolProcesses] = useState<Set<string>>(new Set());
   
   // Gestion des filtres
   const [showFilters, setShowFilters] = useState(false);
@@ -133,11 +155,40 @@ export default function SequencagePage() {
   useEffect(() => {
     fetchTools();
   }, []);
+  
+  // Mettre à jour la pagination lorsque les outils filtrés changent
+  useEffect(() => {
+    updatePagination();
+  }, [filteredTools, currentPage, itemsPerPage]);
 
   // Appliquer les filtres lorsqu'ils changent
   useEffect(() => {
     applyFilters();
   }, [filters]);
+
+  // Fonction pour mettre à jour la pagination
+  const updatePagination = () => {
+    const total = Math.ceil(filteredTools.length / itemsPerPage);
+    setTotalPages(Math.max(1, total));
+    
+    // Ajuster la page courante si nécessaire
+    if (currentPage > total && total > 0) {
+      setCurrentPage(total);
+      return;
+    }
+    
+    // Calculer les outils à afficher sur la page courante
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedTools(filteredTools.slice(startIndex, endIndex));
+  };
+  
+  // Navigation dans la pagination
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   // Charger l'historique des séquençages
   const fetchSequenceHistory = async () => {
@@ -213,8 +264,76 @@ export default function SequencagePage() {
     }
   };
 
-  // Lancer le séquençage pour les outils sélectionnés
-  const startSequencing = async () => {
+  // Fonction pour traiter un outil individuellement
+  const processToolAsync = async (toolId: string): Promise<void> => {
+    const tool = tools.find(t => t.id === toolId);
+    if (!tool) return;
+    
+    setActiveToolProcesses(prev => new Set(prev).add(toolId));
+    addLog(`Traitement de l'outil : ${tool.name}`);
+
+    try {
+      // Initialiser tous les processus pour cet outil à "pending"
+      processes.forEach(process => {
+        updateToolProcessStatus(toolId, process.id, 'pending', 'En attente...');
+      });
+
+      // Mettre à jour le premier processus à "running"
+      updateToolProcessStatus(toolId, 1, 'running', 'En cours...');
+      
+      // Appeler le service de séquençage
+      const result = await sequenceTool(toolId, tool.websiteUrl);
+      
+      // Mettre à jour les statuts de tous les processus d'après les résultats
+      Object.entries(result.processResults).forEach(([processIdStr, processResult]) => {
+        const processId = parseInt(processIdStr);
+        updateToolProcessStatus(
+          toolId, 
+          processId, 
+          processResult.status, 
+          processResult.message
+        );
+
+        const processName = processes.find(p => p.id === processId)?.name || `Processus ${processId}`;
+        const statusIcon = 
+          processResult.status === 'success' ? '✅' : 
+          processResult.status === 'warning' ? '⚠️' : 
+          processResult.status === 'error' ? '❌' : 
+          '🔄';
+        
+        addLog(`  ${statusIcon} ${tool.name} - ${processName}: ${processResult.message}`);
+      });
+
+      // Si le processus est terminé, mettre à jour la date de dernier traitement
+      setTools(prevTools => prevTools.map(t => 
+        t.id === toolId 
+          ? {...t, lastProcessed: new Date().toISOString()} 
+          : t
+      ));
+      
+      addLog(`Traitement ${result.success ? 'réussi' : 'terminé avec des avertissements'} pour l'outil : ${tool.name}`);
+    } catch (err) {
+      console.error('Erreur lors du séquençage:', err);
+      addLog(`❌ Erreur lors du traitement de l'outil ${tool.name}: ${(err as Error).message}`);
+      
+      // Mettre à jour les processus restants à "error"
+      processes.forEach(process => {
+        const tp = toolProcesses.find(tp => tp.toolId === toolId && tp.processId === process.id);
+        if (tp && (tp.status === 'pending' || tp.status === 'running')) {
+          updateToolProcessStatus(toolId, process.id, 'error', 'Échec du processus');
+        }
+      });
+    } finally {
+      setActiveToolProcesses(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(toolId);
+        return newSet;
+      });
+    }
+  };
+
+  // Lancer le séquençage pour les outils sélectionnés de manière séquentielle
+  const startSequencingSequential = async () => {
     if (selectedTools.length === 0) {
       setError('Veuillez sélectionner au moins un outil');
       return;
@@ -222,79 +341,72 @@ export default function SequencagePage() {
 
     setIsProcessing(true);
     setError(null);
-    addLog(`Démarrage du séquençage pour ${selectedTools.length} outil(s)`);
+    addLog(`Démarrage du séquençage séquentiel pour ${selectedTools.length} outil(s)`);
 
     // Traiter chaque outil sélectionné séquentiellement
     for (let i = 0; i < selectedTools.length; i++) {
       const toolId = selectedTools[i];
-      const tool = tools.find(t => t.id === toolId);
-      
-      if (!tool) continue;
-      
       setProcessingIndex(i);
-      addLog(`Traitement de l'outil : ${tool.name} (${i + 1}/${selectedTools.length})`);
+      await processToolAsync(toolId);
+    }
 
-      try {
-        // Initialiser tous les processus pour cet outil à "pending"
-        processes.forEach(process => {
-          updateToolProcessStatus(toolId, process.id, 'pending', 'En attente...');
-        });
+    setIsProcessing(false);
+    setProcessingIndex(-1);
+    setCurrentProcessId(-1);
+    addLog('Séquençage séquentiel terminé pour tous les outils sélectionnés');
+    
+    // Recharger l'historique une fois terminé
+    await fetchSequenceHistory();
+  };
+  
+  // Lancer le séquençage pour les outils sélectionnés en parallèle
+  const startSequencingParallel = async () => {
+    if (selectedTools.length === 0) {
+      setError('Veuillez sélectionner au moins un outil');
+      return;
+    }
 
-        // Mettre à jour le premier processus à "running"
-        updateToolProcessStatus(toolId, 1, 'running', 'En cours...');
-        
-        // Appeler le service de séquençage
-        const result = await sequenceTool(toolId, tool.websiteUrl);
-        
-        // Mettre à jour les statuts de tous les processus d'après les résultats
-        Object.entries(result.processResults).forEach(([processIdStr, processResult]) => {
-          const processId = parseInt(processIdStr);
-          updateToolProcessStatus(
-            toolId, 
-            processId, 
-            processResult.status, 
-            processResult.message
-          );
+    setIsProcessing(true);
+    setError(null);
+    addLog(`Démarrage du séquençage parallèle pour ${selectedTools.length} outil(s) - Maximum ${parallelConfig.maxConcurrent} simultanés`);
 
-          const processName = processes.find(p => p.id === processId)?.name || `Processus ${processId}`;
-          const statusIcon = 
-            processResult.status === 'success' ? '✅' : 
-            processResult.status === 'warning' ? '⚠️' : 
-            processResult.status === 'error' ? '❌' : 
-            '🔄';
-          
-          addLog(`  ${statusIcon} ${processName}: ${processResult.message}`);
-        });
-
-        // Si le processus est terminé, mettre à jour la date de dernier traitement
-        setTools(prevTools => prevTools.map(t => 
-          t.id === toolId 
-            ? {...t, lastProcessed: new Date().toISOString()} 
-            : t
-        ));
-        
-        // Recharger l'historique
-        await fetchSequenceHistory();
-
-        addLog(`Traitement ${result.success ? 'réussi' : 'terminé avec des avertissements'} pour l'outil : ${tool.name}`);
-      } catch (err) {
-        console.error('Erreur lors du séquençage:', err);
-        addLog(`❌ Erreur lors du traitement de l'outil ${tool.name}: ${(err as Error).message}`);
-        
-        // Mettre à jour les processus restants à "error"
-        processes.forEach(process => {
-          const tp = toolProcesses.find(tp => tp.toolId === toolId && tp.processId === process.id);
-          if (tp && (tp.status === 'pending' || tp.status === 'running')) {
-            updateToolProcessStatus(toolId, process.id, 'error', 'Échec du processus');
-          }
-        });
+    // Diviser les outils en lots pour limiter le parallélisme
+    const toolBatches: string[][] = [];
+    for (let i = 0; i < selectedTools.length; i += parallelConfig.maxConcurrent) {
+      toolBatches.push(selectedTools.slice(i, i + parallelConfig.maxConcurrent));
+    }
+    
+    // Traiter chaque lot en parallèle
+    for (let batchIndex = 0; batchIndex < toolBatches.length; batchIndex++) {
+      const batch = toolBatches[batchIndex];
+      addLog(`Traitement du lot ${batchIndex + 1}/${toolBatches.length} (${batch.length} outils)`);
+      
+      // Lancer tous les traitements du lot en parallèle
+      await Promise.all(batch.map(toolId => processToolAsync(toolId)));
+      
+      // Ajouter un délai entre les lots si ce n'est pas le dernier
+      if (batchIndex < toolBatches.length - 1 && parallelConfig.delayBetweenBatches > 0) {
+        addLog(`Attente de ${parallelConfig.delayBetweenBatches/1000} secondes avant le prochain lot...`);
+        await new Promise(resolve => setTimeout(resolve, parallelConfig.delayBetweenBatches));
       }
     }
 
     setIsProcessing(false);
     setProcessingIndex(-1);
     setCurrentProcessId(-1);
-    addLog('Séquençage terminé pour tous les outils sélectionnés');
+    addLog('Séquençage parallèle terminé pour tous les outils sélectionnés');
+    
+    // Recharger l'historique une fois terminé
+    await fetchSequenceHistory();
+  };
+  
+  // Fonction de démarrage qui choisit entre séquentiel et parallèle
+  const startSequencing = async () => {
+    if (parallelConfig.enabled) {
+      await startSequencingParallel();
+    } else {
+      await startSequencingSequential();
+    }
   };
 
   // Sélectionner/Désélectionner tous les outils
@@ -501,6 +613,16 @@ export default function SequencagePage() {
             {showFilters ? "Masquer les filtres" : "Afficher les filtres"}
           </button>
           
+          <button
+            onClick={() => setShowParallelConfig(!showParallelConfig)}
+            className={`flex items-center justify-center px-4 py-2 ${
+              parallelConfig.enabled ? 'bg-blue-100 text-blue-700' : 'bg-gray-50 text-gray-700'
+            } rounded-md hover:bg-blue-100 transition-colors`}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Config Parallèle
+          </button>
+          
           <div className="flex items-center gap-2">
             <button
               onClick={() => setViewMode('grid')}
@@ -551,12 +673,89 @@ export default function SequencagePage() {
             ) : (
               <>
                 <PlayCircle className="w-4 h-4 mr-2" />
-                Lancer le traitement
+                {parallelConfig.enabled ? 'Lancer (parallèle)' : 'Lancer (séquentiel)'}
               </>
             )}
           </button>
         </div>
       </div>
+      
+      {/* Configuration du traitement parallèle */}
+      {showParallelConfig && (
+        <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                <RefreshCw className="h-5 w-5 mr-2 text-blue-500" />
+                Configuration du traitement parallèle
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div className="flex items-center mb-4">
+                  <input
+                    id="parallel-mode"
+                    type="checkbox"
+                    checked={parallelConfig.enabled}
+                    onChange={() => setParallelConfig({...parallelConfig, enabled: !parallelConfig.enabled})}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <label htmlFor="parallel-mode" className="ml-2 block text-sm font-medium text-gray-700">
+                    Activer le traitement en parallèle
+                  </label>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Le traitement en parallèle permet de traiter plusieurs outils simultanément, 
+                  ce qui accélère le processus global mais peut augmenter la charge serveur.
+                </p>
+              </div>
+              
+              <div>
+                <label htmlFor="max-concurrent" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre maximum d'outils simultanés
+                </label>
+                <input
+                  id="max-concurrent"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={parallelConfig.maxConcurrent}
+                  onChange={(e) => setParallelConfig({
+                    ...parallelConfig, 
+                    maxConcurrent: parseInt(e.target.value) || 5
+                  })}
+                  className="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Recommandé: 3-5. Une valeur trop élevée peut surcharger le serveur.
+                </p>
+              </div>
+              
+              <div>
+                <label htmlFor="delay-between-batches" className="block text-sm font-medium text-gray-700 mb-1">
+                  Délai entre les lots (ms)
+                </label>
+                <input
+                  id="delay-between-batches"
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={parallelConfig.delayBetweenBatches}
+                  onChange={(e) => setParallelConfig({
+                    ...parallelConfig, 
+                    delayBetweenBatches: parseInt(e.target.value) || 1000
+                  })}
+                  className="focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Pause entre les lots d'outils pour éviter la surcharge (1000ms = 1 seconde)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Section de filtres */}
       {showFilters && (
@@ -725,17 +924,31 @@ export default function SequencagePage() {
                 <div>
                   <h2 className="text-lg font-medium text-gray-900">Sélection des outils</h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    {filteredTools.length} outil(s) trouvé(s) - {selectedTools.length} sélectionné(s)
+                    {filteredTools.length} outil(s) trouvé(s) - {selectedTools.length} sélectionné(s) - 
+                    Page {currentPage}/{totalPages}
                   </p>
                 </div>
                 
                 <div className="flex gap-2">
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  >
+                    <option value={10}>10 par page</option>
+                    <option value={30}>30 par page</option>
+                    <option value={50}>50 par page</option>
+                    <option value={100}>100 par page</option>
+                  </select>
+                  
                   <button
                     onClick={toggleSelectAll}
                     className="flex items-center text-sm px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100"
                   >
                     <CheckSquare className="w-4 h-4 mr-1" />
-                    {selectedTools.length === filteredTools.length ? "Tout désélectionner" : "Tout sélectionner"}
+                    {selectedTools.length === filteredTools.length && filteredTools.length > 0 
+                      ? "Tout désélectionner" 
+                      : "Tout sélectionner (page)"}
                   </button>
                 </div>
               </div>
@@ -746,7 +959,7 @@ export default function SequencagePage() {
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {filteredTools.map((tool) => {
+                  {paginatedTools.map((tool) => {
                     // Définir le style de la carte en fonction du statut de l'outil et s'il a été testé
                     const isBeingProcessed = processingIndex >= 0 && selectedTools[processingIndex] === tool.id;
                     const isTested = testedTools.has(tool.id);
@@ -867,7 +1080,7 @@ export default function SequencagePage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredTools.map((tool) => {
+                      {paginatedTools.map((tool) => {
                         const isBeingProcessed = processingIndex >= 0 && selectedTools[processingIndex] === tool.id;
                         const isTested = testedTools.has(tool.id);
                         const toolStatus = getToolStatus(tool.id);
@@ -952,6 +1165,70 @@ export default function SequencagePage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center space-x-2 mt-6">
+                  <button
+                    onClick={() => goToPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    &laquo;
+                  </button>
+                  <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    &lsaquo;
+                  </button>
+                  
+                  {/* Afficher les numéros de page */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    // Calculer les pages à afficher autour de la page courante
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`px-3 py-1 rounded-md ${
+                          currentPage === pageNum
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    &rsaquo;
+                  </button>
+                  <button
+                    onClick={() => goToPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    &raquo;
+                  </button>
                 </div>
               )}
             </div>

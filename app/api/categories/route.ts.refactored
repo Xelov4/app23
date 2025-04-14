@@ -1,0 +1,40 @@
+import { createCRUDHandler } from '@/lib/api/api-factory';
+
+// Fonction de formatage des catégories
+function formatCategory(category: any) {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    imageUrl: category.imageUrl,
+    iconName: category.iconName,
+    seoTitle: category.seoTitle,
+    metaDescription: category.metaDescription,
+    toolCount: category._count?.CategoriesOnTools || 0,
+    createdAt: category.createdAt,
+    updatedAt: category.updatedAt
+  };
+}
+
+// Configuration pour les catégories
+const categoriesConfig = {
+  model: 'category',
+  includes: {
+    _count: {
+      select: {
+        CategoriesOnTools: true,
+      },
+    },
+  },
+  orderBy: { name: 'asc' as const },
+  formatResponse: formatCategory,
+  uniqueFields: ['slug']
+};
+
+// Créer les handlers CRUD pour les catégories
+const categoriesHandler = createCRUDHandler(categoriesConfig);
+
+// Exporter les handlers
+export const GET = categoriesHandler.GET;
+export const POST = categoriesHandler.POST; 

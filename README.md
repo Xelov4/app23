@@ -174,3 +174,50 @@ Pour renouveler manuellement les certificats SSL :
 cd /root/app23
 ./renew-certs.sh
 ```
+
+## Tests
+
+### Tests unitaires et d'intégration
+
+Le projet utilise Jest pour les tests unitaires et d'intégration. Pour exécuter les tests :
+
+```bash
+# Installer les dépendances
+npm install
+
+# Exécuter tous les tests
+npm test
+
+# Exécuter les tests unitaires seulement
+npm run test:unit
+
+# Exécuter les tests d'intégration seulement
+npm run test:integration
+
+# Exécuter les tests avec couverture
+npm run test:coverage
+```
+
+### Tests end-to-end (E2E)
+
+Les tests E2E utilisent Playwright. Pour les exécuter :
+
+```bash
+# Installer les navigateurs pour Playwright (à faire une seule fois)
+npx playwright install
+
+# Exécuter les tests E2E
+npm run test:e2e
+
+# Exécuter les tests E2E avec interface graphique
+npm run test:e2e:ui
+
+# Exécuter les tests E2E en mode débogage
+npm run test:e2e:debug
+```
+
+### Documentation des tests
+
+La documentation complète des tests est disponible dans :
+- `docs/development/tests-search.md` : Guide général des tests
+- `docs/api/search/api-test-plan.md` : Plan de tests des API

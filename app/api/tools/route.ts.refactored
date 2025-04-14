@@ -1,0 +1,78 @@
+import { createCRUDHandler } from '@/lib/api/api-factory';
+
+// Fonction de formatage des outils
+function formatTool(tool: any) {
+  // Calculer la note moyenne
+  const rating = tool.Review && tool.Review.length > 0
+    ? tool.Review.reduce((acc: number, review: any) => acc + review.rating, 0) / tool.Review.length
+    : 0;
+
+  return {
+    id: tool.id,
+    name: tool.name,
+    slug: tool.slug,
+    description: tool.description,
+    logoUrl: tool.logoUrl,
+    websiteUrl: tool.websiteUrl,
+    pricingType: tool.pricingType,
+    pricingDetails: tool.pricingDetails,
+    features: tool.features,
+    isActive: tool.isActive,
+    httpCode: tool.httpCode || null,
+    httpChain: tool.httpChain || null,
+    twitterUrl: tool.twitterUrl || null,
+    instagramUrl: tool.instagramUrl || null,
+    facebookUrl: tool.facebookUrl || null,
+    linkedinUrl: tool.linkedinUrl || null,
+    githubUrl: tool.githubUrl || null,
+    category: tool.CategoriesOnTools[0]?.Category.name || "Non catégorisé",
+    categoryId: tool.CategoriesOnTools[0]?.categoryId,
+    categories: tool.CategoriesOnTools.map((c: any) => ({
+      id: c.categoryId,
+      name: c.Category.name,
+      slug: c.Category.slug
+    })),
+    tags: tool.TagsOnTools.map((t: any) => ({
+      id: t.tagId,
+      name: t.Tag.name,
+      slug: t.Tag.slug
+    })),
+    rating,
+    reviewCount: tool._count?.Review || 0,
+    createdAt: tool.createdAt,
+    updatedAt: tool.updatedAt
+  };
+}
+
+// Configuration pour les outils
+const toolsConfig = {
+  model: 'tool',
+  includes: {
+    CategoriesOnTools: {
+      include: {
+        Category: true
+      }
+    },
+    TagsOnTools: {
+      include: {
+        Tag: true
+      }
+    },
+    Review: true,
+    _count: {
+      select: {
+        Review: true,
+      },
+    },
+  },
+  orderBy: { createdAt: 'desc' as const },
+  formatResponse: formatTool,
+  uniqueFields: ['slug']
+};
+
+// Créer les handlers CRUD pour les outils
+const toolsHandler = createCRUDHandler(toolsConfig);
+
+// Exporter les handlers
+export const GET = toolsHandler.GET;
+export const POST = toolsHandler.POST; 

@@ -1,0 +1,185 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { 
+  Edit, 
+  Trash2, 
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FolderOpen
+} from 'lucide-react';
+import { format } from 'date-fns';
+import AdminTable from '@/components/admin/generics/AdminTable';
+import { Category } from '@/types/app';
+
+export default function CategoriesPage() {
+  const router = useRouter();
+
+  // Fonction pour récupérer les catégories
+  const fetchCategories = async (): Promise<Category[]> => {
+    const response = await fetch('/api/categories');
+    if (!response.ok) {
+      throw new Error(`Erreur: ${response.status}`);
+    }
+    return await response.json();
+  };
+
+  // Définition des colonnes du tableau
+  const columns = [
+    {
+      header: 'Nom',
+      accessorKey: 'name',
+      enableSorting: true,
+      renderCell: (category: Category) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+            <FolderOpen className="h-5 w-5 text-gray-500" />
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900">{category.name}</div>
+            <div className="text-sm text-gray-500">{category.slug}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      renderCell: (category: Category) => (
+        <div className="text-sm text-gray-500 max-w-md truncate">
+          {category.description || 'Aucune description'}
+        </div>
+      )
+    },
+    {
+      header: 'Outils',
+      accessorKey: 'toolCount',
+      enableSorting: true,
+      renderCell: (category: Category) => (
+        <div className="text-sm">
+          {category.toolCount || 0}
+        </div>
+      )
+    },
+    {
+      header: 'Statut',
+      accessorKey: 'isActive',
+      renderCell: (category: Category) => (
+        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          category.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {category.isActive ? 'Actif' : 'Inactif'}
+        </span>
+      )
+    },
+    {
+      header: 'Mise à jour',
+      accessorKey: 'updatedAt',
+      enableSorting: true,
+      renderCell: (category: Category) => (
+        <div className="text-sm text-gray-500">
+          {format(new Date(category.updatedAt), 'dd/MM/yyyy')}
+        </div>
+      )
+    }
+  ];
+
+  // Définition des actions
+  const actions = [
+    {
+      label: 'Éditer',
+      icon: <Edit className="w-4 h-4 mr-1" />,
+      onClick: (category: Category) => router.push(`/admin/categories/${category.id}/edit`),
+      variant: 'outline' as const
+    },
+    {
+      label: 'Voir',
+      icon: <Eye className="w-4 h-4 mr-1" />,
+      onClick: (category: Category) => window.open(`/categories/${category.slug}`, '_blank'),
+      variant: 'outline' as const
+    },
+    {
+      label: 'Désactiver',
+      icon: <EyeOff className="w-4 h-4 mr-1" />,
+      onClick: async (category: Category) => {
+        if (confirm(`Voulez-vous ${category.isActive ? 'désactiver' : 'activer'} cette catégorie ?`)) {
+          await fetch(`/api/categories/${category.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: !category.isActive })
+          });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (category: Category) => category.isActive
+    },
+    {
+      label: 'Activer',
+      icon: <Eye className="w-4 h-4 mr-1" />,
+      onClick: async (category: Category) => {
+        if (confirm(`Voulez-vous ${category.isActive ? 'désactiver' : 'activer'} cette catégorie ?`)) {
+          await fetch(`/api/categories/${category.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: !category.isActive })
+          });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (category: Category) => !category.isActive
+    },
+    {
+      label: 'Supprimer',
+      icon: <Trash2 className="w-4 h-4 mr-1" />,
+      onClick: async (category: Category) => {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) {
+          await fetch(`/api/categories/${category.id}`, { method: 'DELETE' });
+          // Recharger les données
+          window.location.reload();
+        }
+      },
+      variant: 'outline' as const,
+      condition: (category: Category) => !category.isActive && (!category.toolCount || category.toolCount === 0)
+    }
+  ];
+
+  // Statistiques
+  const createStatCards = (categories: Category[]) => [
+    {
+      title: "Nombre de catégories",
+      value: categories.length,
+      color: 'blue'
+    },
+    {
+      title: "Catégories actives",
+      value: categories.filter(c => c.isActive).length,
+      color: 'green'
+    },
+    {
+      title: "Catégories sans outils",
+      value: categories.filter(c => !c.toolCount || c.toolCount === 0).length,
+      color: 'amber'
+    }
+  ];
+
+  return (
+    <AdminTable<Category>
+      title="Toutes les catégories"
+      icon={<FolderOpen className="mr-2 h-6 w-6 text-primary" />}
+      description="Gérez les catégories d'outils de la plateforme"
+      fetchItems={fetchCategories}
+      columns={columns}
+      actions={actions}
+      searchFields={['name', 'slug', 'description']}
+      statCards={createStatCards}
+      createLink="/admin/categories/new"
+      createLabel="Nouvelle catégorie"
+      itemsPerPage={15}
+    />
+  );
+} 
