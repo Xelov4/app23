@@ -1,10 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-const seedData = require('./seed-data');
 
 const prisma = new PrismaClient();
 
-// Définition des types d'enum utilisés par Prisma
+// Types d'enum pour le prix
 const PricingType = {
   FREE: "FREE",
   FREEMIUM: "FREEMIUM",
@@ -12,404 +11,388 @@ const PricingType = {
   CONTACT: "CONTACT"
 };
 
+// Données de base pour générer les outils
+const aiNames = ["AI", "Vision", "Creator", "Gen", "Neural", "Deep", "Smart", "Synth", "Auto", "Flux", "Pro", "Nova", "Max", "Ultra", "Intelligent", "Cognitive", "Logic", "System", "Assistant", "Genius", "Expert", "Master", "Craft", "Canvas", "Workshop", "Lab", "Studio", "Factory", "Forge", "Architect", "Builder", "Creator", "Designer", "Developer", "Engineer", "Maker", "Producer"];
+const domains = ["Image", "Video", "Audio", "Media", "Pic", "Frame", "Sound", "Voice", "Motion", "Visual", "Scene", "Studio", "Production", "Director", "Editor", "Mixer", "Enhancer", "Filter", "Effect", "Transform", "Render", "Compose", "Create", "Generate", "Stream", "Process", "Analyze", "Optimize", "Model", "Design", "Animation", "Graphics", "Content", "Art"];
+const features = [
+  "Haute résolution", "Export multi-format", "Édition par lot", "Interface intuitive", "Partage facilité", 
+  "Intelligence contextuelle", "Styles personnalisables", "Traitement rapide", "Mode hors-ligne", 
+  "Reconnaissance d'objets", "Effets temps réel", "Analyse sémantique", "Intégration cloud", 
+  "Correction automatique", "Filtres avancés", "Modèles pré-entraînés", "API disponible", 
+  "Retouche intelligente", "Conversion de formats", "Collaboration en temps réel",
+  "Génération d'images", "Montage vidéo", "Traitement audio", "Animation automatique",
+  "Suppression de bruit", "Reconnaissance vocale", "Sous-titrage automatique",
+  "Synthèse vocale", "Effets spéciaux", "Stabilisation vidéo", "Correction colorimétrique",
+  "Masking intelligent", "Tracking d'objets", "Restoration d'image", "Upscaling vidéo"
+];
+const pricingDetails = [
+  "Gratuit pour usage personnel",
+  "À partir de 9,99$/mois",
+  "Freemium avec fonctionnalités avancées payantes",
+  "Offre d'essai gratuite de 14 jours",
+  "Version Pro à 19,99$/mois",
+  "Contacter l'équipe pour un devis personnalisé",
+  "Tarification basée sur l'usage",
+  "Plan entreprise disponible",
+  "5$/mois pour les utilisateurs réguliers",
+  "Version gratuite limitée, Pro à 29$/mois",
+  "Tarification flexible selon les besoins",
+  "Gratuit pour les étudiants, 15$/mois pour les professionnels"
+];
+
+// Catégories prédéfinies
+const categories = [
+  { name: "Génération d'images", slug: "generation-images", description: "Outils IA pour créer des images à partir de descriptions textuelles" },
+  { name: "Édition vidéo", slug: "edition-video", description: "Outils IA pour éditer et améliorer des vidéos" },
+  { name: "Montage automatique", slug: "montage-automatique", description: "Outils IA pour automatiser le montage vidéo" },
+  { name: "Traitement audio", slug: "traitement-audio", description: "Outils IA pour analyser et manipuler l'audio" },
+  { name: "Animation", slug: "animation", description: "Outils IA pour créer des animations" },
+  { name: "Effets spéciaux", slug: "effets-speciaux", description: "Outils IA pour ajouter des effets spéciaux aux médias" },
+  { name: "Transcription", slug: "transcription", description: "Outils IA pour transcrire l'audio en texte" },
+  { name: "Sous-titrage", slug: "sous-titrage", description: "Outils IA pour générer des sous-titres" },
+  { name: "Voix off", slug: "voix-off", description: "Outils IA pour créer des voix synthétiques" },
+  { name: "Marketing vidéo", slug: "marketing-video", description: "Outils IA pour optimiser le marketing vidéo" },
+];
+
+// Tags prédéfinis
+const tags = [
+  { name: "Gratuit", slug: "gratuit" },
+  { name: "Débutant", slug: "debutant" },
+  { name: "Professionnel", slug: "professionnel" },
+  { name: "Temps Réel", slug: "temps-reel" },
+  { name: "YouTube", slug: "youtube" },
+  { name: "TikTok", slug: "tiktok" },
+  { name: "Instagram", slug: "instagram" },
+  { name: "Cinéma", slug: "cinema" },
+  { name: "Animation 3D", slug: "animation-3d" },
+  { name: "Motion Design", slug: "motion-design" },
+  { name: "Open Source", slug: "open-source" },
+  { name: "IA Générative", slug: "ia-generative" }
+];
+
+// Types d'utilisateurs prédéfinis
+const userTypes = [
+  { name: "Créateurs de Contenu", slug: "createurs-de-contenu" },
+  { name: "YouTubers", slug: "youtubers" },
+  { name: "Monteurs Vidéo", slug: "monteurs-video" },
+  { name: "Réalisateurs", slug: "realisateurs" },
+  { name: "Streamers", slug: "streamers" },
+  { name: "Motion Designers", slug: "motion-designers" },
+  { name: "Animateurs", slug: "animateurs" },
+  { name: "Entreprises", slug: "entreprises" },
+  { name: "Marketeurs", slug: "marketeurs" },
+  { name: "Étudiants", slug: "etudiants" }
+];
+
+// Générer une description basée sur la catégorie
+function generateDescription(categoryIndex) {
+  const descriptions = [
+    "Solution IA pour générer des images de haute qualité à partir de descriptions textuelles",
+    "Plateforme d'édition vidéo assistée par IA offrant des fonctionnalités avancées pour créateurs",
+    "Outil de montage vidéo automatisé permettant de créer des vidéos professionnelles rapidement",
+    "Solution IA pour nettoyer, améliorer et transformer vos fichiers audio avec une qualité professionnelle",
+    "Plateforme d'animation IA permettant de créer et animer des personnages et des scènes facilement",
+    "Suite d'outils pour ajouter des effets spéciaux impressionnants à vos vidéos grâce à l'IA",
+    "Logiciel de transcription audio alimenté par l'IA offrant une précision remarquable",
+    "Outil de génération automatique de sous-titres précis pour vos vidéos",
+    "Technologie de synthèse vocale pour créer des voix off de qualité professionnelle",
+    "Suite d'outils IA pour optimiser vos vidéos marketing et maximiser leur impact"
+  ];
+  return descriptions[categoryIndex % descriptions.length];
+}
+
+// Fonction utilitaire pour attendre X millisecondes
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Nombre total d'outils à générer
+const TOTAL_TOOLS = 1885;
+
 async function main() {
-  console.log('🌱 Début du processus de seed...');
+  console.log(`🌱 Début du processus de seed pour générer ${TOTAL_TOOLS} outils...`);
   
-  // Créer les utilisateurs
-  console.log('👤 Création des utilisateurs...');
-  for (const userData of seedData.users) {
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
-    await prisma.user.upsert({
-      where: { email: userData.email },
-      update: {
-        name: userData.name,
-        password: hashedPassword,
-        role: userData.role
-      },
-      create: {
-        email: userData.email,
-        name: userData.name,
-        password: hashedPassword,
-        role: userData.role
-      },
-    });
-  }
-  console.log(`✅ ${seedData.users.length} utilisateurs créés avec succès.`);
+  // Créer un utilisateur admin
+  console.log("👤 Création de l'utilisateur admin...");
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+  await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
+      email: 'admin@example.com',
+      name: 'Admin',
+      password: hashedPassword,
+      role: 'ADMIN'
+    },
+  });
   
   // Créer les catégories
   console.log('📂 Création des catégories...');
-  for (const categoryData of seedData.categories) {
-    await prisma.category.upsert({
-      where: { slug: categoryData.slug },
-      update: categoryData,
-      create: {
-        ...categoryData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-    });
-  }
-  console.log(`✅ ${seedData.categories.length} catégories créées avec succès.`);
-  
-  // Créer les fonctionnalités
-  console.log('🔧 Création des fonctionnalités...');
-  for (const featureData of seedData.features) {
-    await prisma.feature.upsert({
-      where: { slug: featureData.slug },
-      update: featureData,
-      create: {
-        ...featureData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-    });
-  }
-  console.log(`✅ ${seedData.features.length} fonctionnalités créées avec succès.`);
+  const createdCategories = await Promise.all(
+    categories.map(async (category) => {
+      return prisma.category.upsert({
+        where: { slug: category.slug },
+        update: {},
+        create: {
+          name: category.name,
+          slug: category.slug,
+          description: category.description,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+      });
+    })
+  );
   
   // Créer les tags
   console.log('🏷️ Création des tags...');
-  for (const tagData of seedData.tags) {
-    await prisma.tag.upsert({
-      where: { slug: tagData.slug },
-      update: tagData,
-      create: {
-        ...tagData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-    });
-  }
-  console.log(`✅ ${seedData.tags.length} tags créés avec succès.`);
-  
-  // Créer les types d'utilisateurs
-  console.log('👥 Création des types d\'utilisateurs...');
-  for (const userTypeData of seedData.userTypes) {
-    await prisma.userType.upsert({
-      where: { slug: userTypeData.slug },
-      update: userTypeData,
-      create: {
-        ...userTypeData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-    });
-  }
-  console.log(`✅ ${seedData.userTypes.length} types d'utilisateurs créés avec succès.`);
-  
-  // Créer les outils et leurs relations
-  console.log('🛠️ Création des outils...');
-  for (const toolData of seedData.tools) {
-    // Créer l'outil de base avec des valeurs par défaut pour tous les champs
-    try {
-      const toolCreate = {
-        name: toolData.name,
-        slug: toolData.slug,
-        description: toolData.description,
-        websiteUrl: toolData.websiteUrl,
-        pricingType: toolData.pricingType,
-        features: toolData.features || '',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Ajouter les champs optionnels seulement s'ils existent
-      if (toolData.pricingDetails) toolCreate.pricingDetails = toolData.pricingDetails;
-      if (toolData.twitterUrl) toolCreate.twitterUrl = toolData.twitterUrl;
-      if (toolData.instagramUrl) toolCreate.instagramUrl = toolData.instagramUrl;
-      if (toolData.facebookUrl) toolCreate.facebookUrl = toolData.facebookUrl;
-      if (toolData.linkedinUrl) toolCreate.linkedinUrl = toolData.linkedinUrl;
-      if (toolData.githubUrl) toolCreate.githubUrl = toolData.githubUrl;
-      if (toolData.youtubeUrl) toolCreate.youtubeUrl = toolData.youtubeUrl;
-      if (toolData.appStoreUrl) toolCreate.appStoreUrl = toolData.appStoreUrl;
-      if (toolData.playStoreUrl) toolCreate.playStoreUrl = toolData.playStoreUrl;
-      if (toolData.affiliateUrl) toolCreate.affiliateUrl = toolData.affiliateUrl;
-      if (toolData.hasAffiliateProgram !== undefined) toolCreate.hasAffiliateProgram = toolData.hasAffiliateProgram;
-
-      const tool = await prisma.tool.upsert({
-        where: { slug: toolData.slug },
-        update: toolCreate,
-        create: toolCreate
-      });
-      
-      // Ajouter des relations aléatoires avec les catégories
-      const categoryCount = Math.floor(Math.random() * 3) + 1;
-      const randomCategories = seedData.categories.sort(() => 0.5 - Math.random()).slice(0, categoryCount);
-      
-      for (const category of randomCategories) {
-        const categoryRecord = await prisma.category.findUnique({
-          where: { slug: category.slug }
-        });
-        
-        if (categoryRecord) {
-          // Vérifier si la relation existe déjà
-          const existingRelation = await prisma.categoriesOnTools.findUnique({
-            where: {
-              toolId_categoryId: {
-                toolId: tool.id,
-                categoryId: categoryRecord.id
-              }
-            }
-          });
-          
-          if (!existingRelation) {
-            await prisma.categoriesOnTools.create({
-              data: {
-                toolId: tool.id,
-                categoryId: categoryRecord.id
-              }
-            });
-          }
-        }
-      }
-      
-      // Ajouter des relations aléatoires avec les tags
-      const tagCount = Math.floor(Math.random() * 5) + 2;
-      const randomTags = seedData.tags.sort(() => 0.5 - Math.random()).slice(0, tagCount);
-      
-      for (const tag of randomTags) {
-        const tagRecord = await prisma.tag.findUnique({
-          where: { slug: tag.slug }
-        });
-        
-        if (tagRecord) {
-          // Vérifier si la relation existe déjà
-          const existingRelation = await prisma.tagsOnTools.findUnique({
-            where: {
-              toolId_tagId: {
-                toolId: tool.id,
-                tagId: tagRecord.id
-              }
-            }
-          });
-          
-          if (!existingRelation) {
-            await prisma.tagsOnTools.create({
-              data: {
-                toolId: tool.id,
-                tagId: tagRecord.id
-              }
-            });
-          }
-        }
-      }
-      
-      // Ajouter des relations aléatoires avec les fonctionnalités
-      const featureCount = Math.floor(Math.random() * 4) + 2;
-      const randomFeatures = seedData.features.sort(() => 0.5 - Math.random()).slice(0, featureCount);
-      
-      for (const feature of randomFeatures) {
-        const featureRecord = await prisma.feature.findUnique({
-          where: { slug: feature.slug }
-        });
-        
-        if (featureRecord) {
-          // Vérifier si la relation existe déjà
-          const existingRelation = await prisma.featuresOnTools.findUnique({
-            where: {
-              toolId_featureId: {
-                toolId: tool.id,
-                featureId: featureRecord.id
-              }
-            }
-          });
-          
-          if (!existingRelation) {
-            await prisma.featuresOnTools.create({
-              data: {
-                toolId: tool.id,
-                featureId: featureRecord.id
-              }
-            });
-          }
-        }
-      }
-      
-      // Ajouter des relations aléatoires avec les types d'utilisateurs
-      const userTypeCount = Math.floor(Math.random() * 3) + 1;
-      const randomUserTypes = seedData.userTypes.sort(() => 0.5 - Math.random()).slice(0, userTypeCount);
-      
-      for (const userType of randomUserTypes) {
-        const userTypeRecord = await prisma.userType.findUnique({
-          where: { slug: userType.slug }
-        });
-        
-        if (userTypeRecord) {
-          // Vérifier si la relation existe déjà
-          const existingRelation = await prisma.userTypesOnTools.findUnique({
-            where: {
-              toolId_userTypeId: {
-                toolId: tool.id,
-                userTypeId: userTypeRecord.id
-              }
-            }
-          });
-          
-          if (!existingRelation) {
-            await prisma.userTypesOnTools.create({
-              data: {
-                toolId: tool.id,
-                userTypeId: userTypeRecord.id
-              }
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Erreur lors de la création de l'outil ${toolData.slug}:`, error);
-    }
-  }
-  console.log(`✅ ${seedData.tools.length} outils créés avec succès avec leurs relations.`);
-  
-  // Créer les recherches
-  console.log('🔍 Création des recherches...');
-  for (const searchData of seedData.searches) {
-    const search = await prisma.search.upsert({
-      where: { slug: searchData.slug },
-      update: {
-        keyword: searchData.keyword,
-        description: searchData.description || null,
-        isActive: searchData.isActive || false,
-        searchCount: Math.floor(Math.random() * 100) + 10,
-        lastSearchedAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000)
-      },
-      create: {
-        keyword: searchData.keyword,
-        slug: searchData.slug,
-        description: searchData.description || null,
-        isActive: searchData.isActive || false,
-        searchCount: Math.floor(Math.random() * 100) + 10,
-        lastSearchedAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-    });
-    
-    // Ajouter des relations aléatoires avec les outils
-    const toolCount = Math.floor(Math.random() * 5) + 3;
-    const randomTools = seedData.tools.sort(() => 0.5 - Math.random()).slice(0, toolCount);
-    
-    for (const tool of randomTools) {
-      const toolRecord = await prisma.tool.findUnique({
-        where: { slug: tool.slug }
-      });
-      
-      if (toolRecord) {
-        // Vérifier si la relation existe déjà
-        const existingRelation = await prisma.toolsOnSearches.findUnique({
-          where: {
-            toolId_searchId: {
-              toolId: toolRecord.id,
-              searchId: search.id
-            }
-          }
-        });
-        
-        if (!existingRelation) {
-          await prisma.toolsOnSearches.create({
-            data: {
-              toolId: toolRecord.id,
-              searchId: search.id,
-              relevance: Math.random() * 0.5 + 0.5
-            }
-          });
-        }
-      }
-    }
-    
-    // Créer quelques données de recherche
-    const searchCount = Math.floor(Math.random() * 5) + 2;
-    for (let i = 0; i < searchCount; i++) {
-      await prisma.searchData.create({
-        data: {
-          searchId: search.id,
-          searchTerm: `${searchData.keyword}${i > 0 ? ` ${['gratuit', 'meilleur', 'comparatif', 'top 10', 'avis'][i % 5]}` : ''}`,
-          count: Math.floor(Math.random() * 40) + 1,
-          lastSearchedAt: new Date(Date.now() - Math.floor(Math.random() * 20) * 24 * 60 * 60 * 1000),
+  const createdTags = await Promise.all(
+    tags.map(async (tag) => {
+      return prisma.tag.upsert({
+        where: { slug: tag.slug },
+        update: {},
+        create: {
+          name: tag.name,
+          slug: tag.slug,
           createdAt: new Date(),
           updatedAt: new Date()
-        }
+        },
       });
-    }
-  }
-  console.log(`✅ ${seedData.searches.length} recherches créées avec succès avec leurs données.`);
+    })
+  );
   
-  // Créer quelques séquences historiques
-  console.log('📝 Création des historiques de séquençage...');
-  for (const tool of seedData.tools) {
-    const toolRecord = await prisma.tool.findUnique({
-      where: { slug: tool.slug }
-    });
+  // Créer les types d'utilisateurs
+  console.log("👥 Création des types d'utilisateurs...");
+  const createdUserTypes = await Promise.all(
+    userTypes.map(async (userType) => {
+      return prisma.userType.upsert({
+        where: { slug: userType.slug },
+        update: {},
+        create: {
+          name: userType.name,
+          slug: userType.slug,
+          description: `Pour les ${userType.name.toLowerCase()}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+      });
+    })
+  );
+  
+  // Créer les fonctionnalités
+  console.log('🔧 Création des fonctionnalités...');
+  const createdFeatures = await Promise.all(
+    features.map(async (feature, index) => {
+      const slug = feature.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
+      return prisma.feature.upsert({
+        where: { slug },
+        update: {},
+        create: {
+          name: feature,
+          slug,
+          description: `Fonctionnalité permettant ${feature.toLowerCase()}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+      });
+    })
+  );
+  
+  // Génération des 1885 outils en batch
+  console.log(`🛠️ Génération de ${TOTAL_TOOLS} outils...`);
+  
+  // Génération par lots pour éviter de saturer la mémoire et les timeouts
+  const BATCH_SIZE = 25; // Réduit de 100 à 25
+  const batches = Math.ceil(TOTAL_TOOLS / BATCH_SIZE);
+  
+  for (let batch = 0; batch < batches; batch++) {
+    const startIndex = batch * BATCH_SIZE;
+    const endIndex = Math.min(startIndex + BATCH_SIZE, TOTAL_TOOLS);
+    console.log(`💾 Traitement du lot ${batch + 1}/${batches} (outils ${startIndex + 1} à ${endIndex})...`);
     
-    if (toolRecord) {
-      const sequenceCount = Math.floor(Math.random() * 3) + 1;
+    const toolsPromises = [];
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      // Générer un nom unique pour chaque outil
+      const nameIndex1 = i % aiNames.length;
+      const nameIndex2 = Math.floor(i / aiNames.length) % domains.length;
+      const name = `${aiNames[nameIndex1]} ${domains[nameIndex2]} ${Math.floor(i / (aiNames.length * domains.length))}`;
+      const slug = name.toLowerCase().replace(/\s+/g, '-');
       
-      for (let i = 0; i < sequenceCount; i++) {
-        const startTime = new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000);
-        const endTime = new Date(startTime.getTime() + Math.floor(Math.random() * 120) * 60 * 1000);
-        const success = Math.random() > 0.3;
-        
-        const processResults = {
-          1: {
-            status: 'success',
-            message: 'URL valide (200)',
-            data: { statusCode: 200, isRedirected: false }
-          },
-          2: {
-            status: Math.random() > 0.4 ? 'success' : 'warning',
-            message: Math.random() > 0.4 ? '3 liens sociaux trouvés et sauvegardés' : 'Aucun lien social trouvé',
-            data: { socialLinks: {} }
-          },
-          3: {
-            status: Math.random() > 0.2 ? 'success' : 'error',
-            message: Math.random() > 0.2 ? 'Contenu extrait avec succès' : 'Échec de l\'extraction de contenu',
-            data: { pagesProcessed: 5 }
-          },
-          4: {
-            status: Math.random() > 0.3 ? 'success' : 'warning',
-            message: Math.random() > 0.3 ? 'Informations de tarification trouvées' : 'Informations de tarification partielles',
-            data: {}
-          },
-          5: {
-            status: 'success',
-            message: 'Description SEO générée',
-            data: {}
-          }
-        };
-        
-        // Simuler des erreurs dans certains cas
-        if (!success) {
-          processResults[Math.floor(Math.random() * 5) + 1].status = 'error';
-          processResults[Math.floor(Math.random() * 5) + 1].message = 'Erreur lors du traitement';
+      // Choisir une catégorie, un type de prix et des détails de prix
+      const categoryIndex = i % categories.length;
+      const pricingTypeIndex = i % 3; // Distribuer équitablement entre FREE, FREEMIUM, PAID
+      const pricingType = Object.values(PricingType)[pricingTypeIndex];
+      const pricingDetail = pricingDetails[i % pricingDetails.length];
+      
+      // Générer une description basée sur la catégorie
+      const description = generateDescription(categoryIndex);
+      
+      // Créer l'outil
+      const toolPromise = prisma.tool.upsert({
+        where: { slug },
+        update: {},
+        create: {
+          name,
+          slug,
+          description,
+          logoUrl: `/images/tools/generated-${i % 20 + 1}.png`,
+          websiteUrl: `https://www.${slug}.ai`,
+          features: `${features[i % 10]}, ${features[(i + 5) % features.length]}, ${features[(i + 10) % features.length]}`,
+          pricingType,
+          pricingDetails: pricingDetail,
+          isActive: true,
+          hasAffiliateProgram: i % 5 === 0, // 20% ont un programme d'affiliation
+          createdAt: new Date(Date.now() - Math.random() * 10000000000),
+          updatedAt: new Date()
+        },
+      }).then(async (tool) => {
+        // Ajouter des relations avec les catégories (1-2 catégories par outil)
+        const categoryCount = (i % 2) + 1;
+        const categoryPromises = [];
+        for (let j = 0; j < categoryCount; j++) {
+          const categoryIndex = (i + j) % createdCategories.length;
+          categoryPromises.push(
+            prisma.categoriesOnTools.upsert({
+              where: {
+                toolId_categoryId: {
+                  toolId: tool.id,
+                  categoryId: createdCategories[categoryIndex].id
+                }
+              },
+              update: {},
+              create: {
+                toolId: tool.id,
+                categoryId: createdCategories[categoryIndex].id
+              }
+            })
+          );
         }
         
-        await prisma.sequenceHistory.create({
-          data: {
-            toolId: toolRecord.id,
-            toolName: tool.name,
-            startTime,
-            endTime,
-            success,
-            processResults: JSON.stringify(processResults),
-            createdAt: endTime,
-            updatedAt: endTime
+        // Ajouter des relations avec les tags (2-4 tags par outil)
+        const tagCount = (i % 3) + 2;
+        const tagPromises = [];
+        for (let j = 0; j < tagCount; j++) {
+          const tagIndex = (i + j) % createdTags.length;
+          tagPromises.push(
+            prisma.tagsOnTools.upsert({
+              where: {
+                toolId_tagId: {
+                  toolId: tool.id,
+                  tagId: createdTags[tagIndex].id
+                }
+              },
+              update: {},
+              create: {
+                toolId: tool.id,
+                tagId: createdTags[tagIndex].id
+              }
+            })
+          );
+        }
+        
+        // Ajouter des relations avec les fonctionnalités (2-4 fonctionnalités par outil)
+        const featureCount = (i % 3) + 2;
+        const featurePromises = [];
+        for (let j = 0; j < featureCount; j++) {
+          const featureIndex = (i + j) % createdFeatures.length;
+          featurePromises.push(
+            prisma.featuresOnTools.upsert({
+              where: {
+                toolId_featureId: {
+                  toolId: tool.id,
+                  featureId: createdFeatures[featureIndex].id
+                }
+              },
+              update: {},
+              create: {
+                toolId: tool.id,
+                featureId: createdFeatures[featureIndex].id
+              }
+            })
+          );
+        }
+        
+        // Ajouter des relations avec les types d'utilisateurs (1-2 types par outil)
+        const userTypeCount = (i % 2) + 1;
+        const userTypePromises = [];
+        for (let j = 0; j < userTypeCount; j++) {
+          const userTypeIndex = (i + j) % createdUserTypes.length;
+          userTypePromises.push(
+            prisma.userTypesOnTools.upsert({
+              where: {
+                toolId_userTypeId: {
+                  toolId: tool.id,
+                  userTypeId: createdUserTypes[userTypeIndex].id
+                }
+              },
+              update: {},
+              create: {
+                toolId: tool.id,
+                userTypeId: createdUserTypes[userTypeIndex].id
+              }
+            })
+          );
+        }
+        
+        // Ajouter quelques avis pour 20% des outils
+        const reviewPromises = [];
+        if (i % 5 === 0) {
+          const reviewCount = (i % 3) + 1;
+          for (let j = 0; j < reviewCount; j++) {
+            reviewPromises.push(
+              prisma.review.upsert({
+                where: { id: `review-${i}-${j}` },
+                update: {},
+                create: {
+                  id: `review-${i}-${j}`,
+                  title: `Avis sur ${name}`,
+                  content: `C'est un excellent outil pour ${description.toLowerCase()}.`,
+                  rating: 3.5 + (j % 2),
+                  userEmail: `user${i % 100}@example.com`,
+                  userName: `Utilisateur ${i % 100}`,
+                  toolId: tool.id,
+                  createdAt: new Date(Date.now() - Math.random() * 5000000000),
+                  updatedAt: new Date()
+                }
+              })
+            );
           }
-        });
-      }
+        }
+        
+        // Exécuter toutes les promesses de relations en parallèle
+        await Promise.all([
+          ...categoryPromises,
+          ...tagPromises,
+          ...featurePromises,
+          ...userTypePromises,
+          ...reviewPromises
+        ]);
+        
+        return tool;
+      });
+      
+      toolsPromises.push(toolPromise);
+    }
+    
+    // Attendre la fin de toutes les opérations du lot
+    await Promise.all(toolsPromises);
+    
+    // Ajouter un délai entre les lots pour éviter de surcharger la BD
+    if (batch < batches - 1) {
+      console.log(`⏱️ Pause de 2 secondes avant le lot suivant...`);
+      await sleep(2000);
     }
   }
-  console.log(`✅ Historiques de séquençage créés avec succès.`);
   
-  console.log('✨ Processus de seed terminé avec succès!');
+  console.log(`✅ Base de données remplie avec succès avec ${TOTAL_TOOLS} outils!`);
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error('Erreur lors du processus de seed:', e);
-    await prisma.$disconnect();
+  .catch((e) => {
+    console.error(e);
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   }); 

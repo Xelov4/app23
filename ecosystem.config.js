@@ -4,7 +4,7 @@ module.exports = {
       name: 'video-ia.net',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
-      cwd: '/root/vidéo-ia.net',
+      cwd: '/root/app23',
       instances: 'max', // Utilise le nombre de CPU disponibles
       exec_mode: 'cluster', // Mode cluster pour plus de robustesse
       autorestart: true,
@@ -20,8 +20,8 @@ module.exports = {
       },
       // Configuration des logs
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/root/vidéo-ia.net/logs/video-ia-err.log',
-      out_file: '/root/vidéo-ia.net/logs/video-ia-out.log',
+      error_file: '/root/app23/logs/video-ia-err.log',
+      out_file: '/root/app23/logs/video-ia-out.log',
       merge_logs: true,
       // Gestion des erreurs
       max_restarts: 10,
