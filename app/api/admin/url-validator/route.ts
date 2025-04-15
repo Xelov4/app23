@@ -16,6 +16,7 @@ interface ValidationResult {
   message: string;
 }
 
+// Support both with and without trailing slash
 export async function POST(req: Request) {
   try {
     // Vérifier l'authentification - mais ne pas bloquer si pas de session
@@ -40,10 +41,24 @@ export async function POST(req: Request) {
     console.log(`[${new Date().toLocaleTimeString()}] Vérification de l'URL: ${normalizedUrl}`);
     
     // Initialiser le navigateur
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    let browser;
+    try {
+      console.log(`[${new Date().toLocaleTimeString()}] Lancement de Puppeteer...`);
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      console.log(`[${new Date().toLocaleTimeString()}] Puppeteer lancé avec succès`);
+    } catch (browserError) {
+      console.error(`[${new Date().toLocaleTimeString()}] Erreur lors du lancement de Puppeteer:`, browserError);
+      return NextResponse.json(
+        { 
+          error: 'Erreur serveur: Impossible de lancer le navigateur: ' + (browserError instanceof Error ? browserError.message : String(browserError)),
+          isValid: false
+        },
+        { status: 500 }
+      );
+    }
     
     // Résultat de validation
     const validationResult: ValidationResult = {

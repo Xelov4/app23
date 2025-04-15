@@ -21,18 +21,28 @@ export interface ToolSequenceResult {
 // Fonctions pour les processus individuels
 async function validateUrl(toolId: string, websiteUrl: string): Promise<ProcessResult> {
   try {
+    console.log(`Validation URL pour l'outil ${toolId}: ${websiteUrl}`);
+    
+    // S'assurer que l'URL est correctement formatée
+    let normalizedUrl = websiteUrl;
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`;
+      console.log(`URL normalisée: ${normalizedUrl}`);
+    }
+    
     const response = await fetch('/api/admin/url-validator', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: websiteUrl,
+        url: normalizedUrl,
         toolId: toolId,
       }),
     });
 
     if (!response.ok) {
+      console.error(`Erreur de réponse API: ${response.status} ${response.statusText}`);
       throw new Error(`Erreur ${response.status}: ${response.statusText}`);
     }
 
@@ -43,23 +53,32 @@ async function validateUrl(toolId: string, websiteUrl: string): Promise<ProcessR
     if (!data.isValid) {
       // Mise à jour de l'outil pour le désactiver - même si l'API url-validator l'a déjà fait
       // C'est une sécurité supplémentaire
-      const updateResponse = await fetch(`/api/tools/${toolId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          isActive: false,
-          httpCode: data.statusCode || 0,
-          httpChain: data.chainOfRedirects?.join(' -> ') || '',
-        }),
-      });
+      try {
+        const updateResponse = await fetch(`/api/tools/${toolId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            isActive: false,
+            httpCode: data.statusCode || 0,
+            httpChain: data.chainOfRedirects?.join(' -> ') || '',
+          }),
+        });
 
-      if (!updateResponse.ok) {
-        console.error(`Échec de la mise à jour de l'outil ${toolId} après validation URL:`, await updateResponse.text());
+        if (!updateResponse.ok) {
+          console.error(`Échec de la mise à jour de l'outil ${toolId} après validation URL:`, await updateResponse.text());
+          return {
+            status: 'error',
+            message: `URL invalide (${data.statusCode || 'erreur'}) - Échec de désactivation de l'outil`,
+            data
+          };
+        }
+      } catch (updateError) {
+        console.error('Erreur lors de la mise à jour de l\'outil après validation URL:', updateError);
         return {
           status: 'error',
-          message: `URL invalide (${data.statusCode || 'erreur'}) - Échec de désactivation de l'outil`,
+          message: `URL invalide (${data.statusCode || 'erreur'}) - Erreur lors de la mise à jour de l'outil: ${(updateError as Error).message}`,
           data
         };
       }
@@ -72,23 +91,32 @@ async function validateUrl(toolId: string, websiteUrl: string): Promise<ProcessR
     }
     
     // Si l'URL est valide, s'assurer que l'outil est bien actif
-    const updateResponse = await fetch(`/api/tools/${toolId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        httpCode: data.statusCode,
-        httpChain: data.chainOfRedirects?.join(' -> ') || '',
-        isActive: true,
-      }),
-    });
+    try {
+      const updateResponse = await fetch(`/api/tools/${toolId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          httpCode: data.statusCode,
+          httpChain: data.chainOfRedirects?.join(' -> ') || '',
+          isActive: true,
+        }),
+      });
 
-    if (!updateResponse.ok) {
-      console.error(`Échec de la mise à jour de l'outil ${toolId} après validation URL valide:`, await updateResponse.text());
+      if (!updateResponse.ok) {
+        console.error(`Échec de la mise à jour de l'outil ${toolId} après validation URL valide:`, await updateResponse.text());
+        return {
+          status: 'warning',
+          message: `URL valide (${data.statusCode}) - Échec de mise à jour de l'outil`,
+          data
+        };
+      }
+    } catch (updateError) {
+      console.error('Erreur lors de la mise à jour de l\'outil après validation URL valide:', updateError);
       return {
         status: 'warning',
-        message: `URL valide (${data.statusCode}) - Échec de mise à jour de l'outil`,
+        message: `URL valide (${data.statusCode}) - Erreur lors de la mise à jour de l'outil: ${(updateError as Error).message}`,
         data
       };
     }
